@@ -27,11 +27,15 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """验证密码"""
-    return pwd_context.verify(plain_password, hashed_password)
+    # Bcrypt has a 72 byte limit, truncate password if necessary
+    password_bytes = plain_password.encode('utf-8')[:72]
+    return pwd_context.verify(password_bytes, hashed_password)
 
 def get_password_hash(password: str) -> str:
     """对密码进行哈希加密"""
-    return pwd_context.hash(password)
+    # Bcrypt has a 72 byte limit, truncate password if necessary
+    password_bytes = password.encode('utf-8')[:72]
+    return pwd_context.hash(password_bytes)
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     """创建 JWT token"""

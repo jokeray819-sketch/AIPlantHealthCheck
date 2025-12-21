@@ -103,7 +103,7 @@ npm run dev
 ## 开发说明
 
 1. 数据库表会在首次运行时自动创建
-2. 密码使用 bcrypt 算法加密
+2. 密码使用 bcrypt 算法加密（密码长度限制：72 字节）
 3. API 访问需要在请求头中携带 JWT token：`Authorization: Bearer <token>`
 4. 生产环境请修改 `.env` 中的 SECRET_KEY 和数据库密码
 
