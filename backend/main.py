@@ -1,9 +1,24 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException
-from pydantic import BaseModel
+from fastapi import FastAPI, File, UploadFile, HTTPException, Depends
 from PIL import Image
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm import Session
+from datetime import timedelta
 import io
 import random
+
+from database import engine, get_db, Base
+from models import User
+from schemas import UserRegister, UserLogin, Token, UserResponse, DetectionResult
+from auth import (
+    get_password_hash,
+    authenticate_user,
+    create_access_token,
+    get_current_user,
+    ACCESS_TOKEN_EXPIRE_MINUTES
+)
+
+# 创建数据库表
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="AI 植物健康检测 API")
 
@@ -16,12 +31,57 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 定义返回的数据结构
-class DetectionResult(BaseModel):
-    plant_name: str
-    status: str
-    confidence: float
-    treatment_suggestion: str
+# ==================== 用户认证相关路由 ====================
+
+@app.post("/register", response_model=UserResponse)
+def register(user: UserRegister, db: Session = Depends(get_db)):
+    """用户注册"""
+    # 检查用户名是否已存在
+    db_user = db.query(User).filter(User.username == user.username).first()
+    if db_user:
+        raise HTTPException(status_code=400, detail="用户名已存在")
+    
+    # 检查邮箱是否已存在
+    db_user = db.query(User).filter(User.email == user.email).first()
+    if db_user:
+        raise HTTPException(status_code=400, detail="邮箱已被注册")
+    
+    # 创建新用户
+    hashed_password = get_password_hash(user.password)
+    new_user = User(
+        username=user.username,
+        email=user.email,
+        hashed_password=hashed_password
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    return new_user
+
+@app.post("/login", response_model=Token)
+def login(user: UserLogin, db: Session = Depends(get_db)):
+    """用户登录"""
+    db_user = authenticate_user(db, user.username, user.password)
+    if not db_user:
+        raise HTTPException(
+            status_code=401,
+            detail="用户名或密码错误",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # 创建访问令牌
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": db_user.username}, expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@app.get("/users/me", response_model=UserResponse)
+async def read_users_me(current_user: User = Depends(get_current_user)):
+    """获取当前登录用户信息"""
+    return current_user
+
+# ==================== 植物健康检测相关路由 ====================
 
 # 模拟 AI 推理过程 (实际开发时这里替换为你的 PyTorch/TensorFlow 模型)
 def mock_ai_inference(image: Image.Image):
@@ -34,7 +94,10 @@ def mock_ai_inference(image: Image.Image):
     return random.choice(results)
 
 @app.post("/predict", response_model=DetectionResult)
-async def predict_plant_health(file: UploadFile = File(...)):
+async def predict_plant_health(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user)
+):
     # 1. 验证文件类型
     if file.content_type not in ["image/jpeg", "image/png"]:
         raise HTTPException(status_code=400, detail="只支持 JPG 或 PNG 图片格式")
