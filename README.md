@@ -10,10 +10,25 @@ AI植物健康检测平台 - 基于Blazor的智能植物健康监测系统
 
 - **开发语言**: C# (.NET 10.0)
 - **前端框架**: Blazor Server
-- **后端框架**: NetCorePal
+- **后端框架**: NetCorePal Cloud Framework ([netcorepal-cloud-framework](https://github.com/netcorepal/netcorepal-cloud-framework))
 - **数据库**: MySQL (使用 Pomelo.EntityFrameworkCore.MySql)
 - **缓存中间件**: Redis (使用 StackExchange.Redis)
 - **消息队列**: RabbitMQ (使用 RabbitMQ.Client)
+- **CQRS 支持**: MediatR
+
+### NetCorePal Cloud Framework
+
+本项目使用 NetCorePal Cloud Framework，这是一个基于 ASP.NET Core 的战术 DDD 框架，提供以下特性：
+
+- **领域驱动设计 (DDD)**: 实体、聚合根、领域事件、强类型 ID
+- **CQRS 模式**: 通过 MediatR 实现命令查询职责分离
+- **工作单元模式**: 基于 EF Core 的 Unit of Work 实现
+- **Repository 模式**: 仓储抽象和 EF Core 实现
+
+相关 NuGet 包:
+- `NetCorePal.Extensions.Domain.Abstractions` - DDD 领域抽象
+- `NetCorePal.Extensions.Repository.EntityFrameworkCore` - EF Core 仓储实现
+- `NetCorePal.Extensions.AspNetCore` - ASP.NET Core 扩展
 
 ## 项目结构
 

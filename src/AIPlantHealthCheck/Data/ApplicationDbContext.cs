@@ -1,12 +1,14 @@
 using Microsoft.EntityFrameworkCore;
 using AIPlantHealthCheck.Models;
+using NetCorePal.Extensions.Repository.EntityFrameworkCore;
+using MediatR;
 
 namespace AIPlantHealthCheck.Data;
 
-public class ApplicationDbContext : DbContext
+public partial class ApplicationDbContext : AppDbContextBase
 {
-    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
-        : base(options)
+    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options, IMediator mediator)
+        : base(options, mediator)
     {
     }
 

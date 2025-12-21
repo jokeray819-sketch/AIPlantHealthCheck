@@ -1,12 +1,12 @@
+using NetCorePal.Extensions.Domain;
+
 namespace AIPlantHealthCheck.Models;
 
 /// <summary>
-/// 植物信息实体
+/// 植物信息实体 - 使用 NetCorePal DDD 模式
 /// </summary>
-public class Plant
+public class Plant : Entity<long>
 {
-    public int Id { get; set; }
-    
     /// <summary>
     /// 植物名称
     /// </summary>
@@ -31,14 +31,4 @@ public class Plant
     /// 备注
     /// </summary>
     public string? Notes { get; set; }
-    
-    /// <summary>
-    /// 创建时间
-    /// </summary>
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    
-    /// <summary>
-    /// 更新时间
-    /// </summary>
-    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }

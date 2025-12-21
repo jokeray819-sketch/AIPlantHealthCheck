@@ -5,6 +5,8 @@ using AIPlantHealthCheck.Infrastructure.RabbitMQ;
 using Microsoft.EntityFrameworkCore;
 using StackExchange.Redis;
 using RabbitMQ.Client;
+using NetCorePal.Extensions.Repository.EntityFrameworkCore;
+using NetCorePal.Extensions.Repository;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,11 +14,17 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
+// Add MediatR for CQRS support
+builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(Program).Assembly));
+
 // Configure MySQL with Pomelo
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseMySql(
         builder.Configuration.GetConnectionString("DefaultConnection"),
         ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("DefaultConnection")!)));
+
+// Register NetCorePal Unit of Work
+builder.Services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<ApplicationDbContext>());
 
 // Configure Redis
 builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
