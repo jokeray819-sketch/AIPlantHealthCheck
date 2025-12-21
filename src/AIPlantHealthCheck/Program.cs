@@ -38,7 +38,8 @@ builder.Services.AddSingleton<IConnection>(sp =>
     {
         Uri = new Uri(builder.Configuration.GetConnectionString("RabbitMQ")!)
     };
-    return factory.CreateConnectionAsync().GetAwaiter().GetResult();
+    // Using Task.Run to avoid deadlock in service registration
+    return Task.Run(async () => await factory.CreateConnectionAsync()).GetAwaiter().GetResult();
 });
 builder.Services.AddSingleton<RabbitMQService>();
 
