@@ -519,10 +519,10 @@ function App() {
         {/* 登录/注册模态框 */}
         {showAuthModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowAuthModal(false)}>
-            <div className="bg-white rounded-lg w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white rounded-lg w-full max-w-sm p-6" role="dialog" aria-labelledby="auth-modal-title" onClick={(e) => e.stopPropagation()}>
               <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-bold text-dark">{showAuthForm === 'login' ? '登录' : '注册'}</h3>
-                <button onClick={() => setShowAuthModal(false)} className="text-medium">
+                <h3 id="auth-modal-title" className="text-xl font-bold text-dark">{showAuthForm === 'login' ? '登录' : '注册'}</h3>
+                <button onClick={() => setShowAuthModal(false)} className="text-medium" aria-label="关闭">
                   <i className="fa fa-times"></i>
                 </button>
               </div>
