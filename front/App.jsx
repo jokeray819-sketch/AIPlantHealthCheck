@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 
 function App() {
@@ -20,6 +20,10 @@ function App() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [currentUser, setCurrentUser] = useState(null);
+
+  // Refs for file inputs
+  const fileInputRef = useRef(null);
+  const captureFileInputRef = useRef(null);
 
   // 检查是否已登录
   useEffect(() => {
@@ -191,16 +195,14 @@ function App() {
           <span>立即拍照检测</span>
         </button>
         <button 
-          onClick={() => {
-            document.getElementById('file-input-hidden').click();
-          }}
+          onClick={() => fileInputRef.current?.click()}
           className="bg-white text-primary border border-primary py-5 px-6 rounded-lg flex items-center justify-center gap-2 btn-shadow transition hover:bg-primary/5 text-lg"
         >
           <i className="fa fa-upload text-2xl"></i>
           <span>上传图片检测</span>
         </button>
         <input 
-          id="file-input-hidden"
+          ref={fileInputRef}
           type="file" 
           onChange={handleFileChange} 
           className="hidden"
@@ -318,7 +320,7 @@ function App() {
       {/* 操作按钮 */}
       <div className="flex justify-center gap-6 mb-4">
         <button 
-          onClick={() => document.getElementById('capture-file-input').click()}
+          onClick={() => captureFileInputRef.current?.click()}
           className="bg-gray-200 text-dark p-3 rounded-full"
         >
           <i className="fa fa-image"></i>
@@ -329,7 +331,7 @@ function App() {
               handleSubmit();
               setShowCapturePage(false);
             } else {
-              document.getElementById('capture-file-input').click();
+              captureFileInputRef.current?.click();
             }
           }}
           className="bg-primary text-white p-4 rounded-full btn-shadow"
@@ -348,7 +350,7 @@ function App() {
       </div>
       
       <input 
-        id="capture-file-input"
+        ref={captureFileInputRef}
         type="file" 
         onChange={(e) => {
           handleFileChange(e);
