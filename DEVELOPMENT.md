@@ -195,8 +195,10 @@ CREATE TABLE users (
 
 确保已安装 bcrypt：
 ```bash
-pip install passlib[bcrypt]
+pip install bcrypt==4.0.1
 ```
+
+如果遇到 passlib 相关错误，请确认使用的是直接的 bcrypt 库而非 passlib 封装。
 
 ### 3. JWT token 无效
 
@@ -229,7 +231,7 @@ app.add_middleware(
 3. **密码策略**：
    - 当前最小长度为 6，生产环境建议增加
    - 可以添加密码复杂度要求
-   - **注意**：由于使用 bcrypt 算法，密码会被自动截断到 72 字节（约 72 个英文字符或 24 个中文字符）
+   - **注意**：使用 bcrypt 算法，自动处理 72 字节限制（超过部分会被忽略）
 
 4. **输入验证**：
    - 所有用户输入都经过 Pydantic 验证

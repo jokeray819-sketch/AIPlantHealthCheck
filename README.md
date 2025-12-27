@@ -93,7 +93,7 @@ npm run dev
 - SQLAlchemy - ORM 数据库工具
 - PyMySQL - MySQL 数据库驱动
 - python-jose - JWT 令牌处理
-- passlib - 密码加密
+- bcrypt - 密码加密
 
 ### 前端
 - React - UI 框架
@@ -103,7 +103,7 @@ npm run dev
 ## 开发说明
 
 1. 数据库表会在首次运行时自动创建
-2. 密码使用 bcrypt 算法加密（密码长度限制：72 字节）
+2. 密码使用 bcrypt 算法加密（bcrypt 自动处理 72 字节限制）
 3. API 访问需要在请求头中携带 JWT token：`Authorization: Bearer <token>`
 4. 生产环境请修改 `.env` 中的 SECRET_KEY 和数据库密码
 
