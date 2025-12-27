@@ -300,7 +300,7 @@ function App() {
             </div>
             <div className="bg-white rounded-lg p-4 card-shadow">
               <div className="w-12 h-12 rounded-full bg-secondary/10 flex items-center justify-center text-secondary mx-auto mb-2">
-                <i className="fa fa-lightbulb-o text-xl"></i>
+                <i className="fa fa-lightbulb text-xl"></i>
               </div>
               <h3 className="font-semibold text-dark mb-1 text-sm">智能建议</h3>
               <p className="text-xs text-medium">专业方案</p>
@@ -378,7 +378,7 @@ function App() {
               {/* 处理建议 */}
               <div className="bg-blue-50 p-4 rounded-lg">
                 <p className="text-sm font-semibold text-secondary mb-2">
-                  <i className="fa fa-lightbulb-o mr-1"></i>
+                  <i className="fa fa-lightbulb mr-1"></i>
                   处理建议
                 </p>
                 <p className="text-sm text-dark">{result.treatment_suggestion}</p>
