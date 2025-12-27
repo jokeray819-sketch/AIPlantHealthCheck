@@ -163,21 +163,21 @@ function App() {
         <div className="grid grid-cols-3 gap-4 text-center">
           <div className="bg-white rounded-lg p-4 card-shadow">
             <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary mx-auto mb-2">
-              <i className="fa fa-leaf text-xl"></i>
+              <i className="fas fa-leaf text-xl"></i>
             </div>
             <h3 className="font-semibold text-dark mb-1 text-sm">品种识别</h3>
             <p className="text-xs text-medium">识别50+常见室内植物</p>
           </div>
           <div className="bg-white rounded-lg p-4 card-shadow">
             <div className="w-12 h-12 rounded-full bg-warning/10 flex items-center justify-center text-warning mx-auto mb-2">
-              <i className="fa fa-stethoscope text-xl"></i>
+              <i className="fas fa-stethoscope text-xl"></i>
             </div>
             <h3 className="font-semibold text-dark mb-1 text-sm">健康诊断</h3>
             <p className="text-xs text-medium">5大类问题精准判断</p>
           </div>
           <div className="bg-white rounded-lg p-4 card-shadow">
             <div className="w-12 h-12 rounded-full bg-secondary/10 flex items-center justify-center text-secondary mx-auto mb-2">
-              <i className="fa fa-lightbulb text-xl"></i>
+              <i className="fas fa-lightbulb text-xl"></i>
             </div>
             <h3 className="font-semibold text-dark mb-1 text-sm">智能建议</h3>
             <p className="text-xs text-medium">3步解决植物问题</p>
@@ -191,14 +191,14 @@ function App() {
           onClick={() => setShowCapturePage(true)}
           className="bg-primary text-white py-5 px-6 rounded-lg flex items-center justify-center gap-2 btn-shadow transition hover:bg-primary/90 text-lg"
         >
-          <i className="fa fa-camera text-2xl"></i>
+          <i className="fas fa-camera text-2xl"></i>
           <span>立即拍照检测</span>
         </button>
         <button 
           onClick={() => fileInputRef.current?.click()}
           className="bg-white text-primary border border-primary py-5 px-6 rounded-lg flex items-center justify-center gap-2 btn-shadow transition hover:bg-primary/5 text-lg"
         >
-          <i className="fa fa-upload text-2xl"></i>
+          <i className="fas fa-upload text-2xl"></i>
           <span>上传图片检测</span>
         </button>
         <input 
@@ -233,7 +233,7 @@ function App() {
       {result && (
         <div className="mb-8">
           <h2 className="text-xl font-bold text-dark mb-4">
-            <i className="fa fa-file-text-o mr-2"></i>
+            <i className="fas fa-file-text-o mr-2"></i>
             诊断结果
           </h2>
           
@@ -250,7 +250,7 @@ function App() {
           {/* 健康状况 */}
           <div className="bg-white rounded-lg p-4 mb-4 card-shadow">
             <h3 className="font-semibold text-dark mb-3">
-              <i className="fa fa-heartbeat mr-2 text-danger"></i>
+              <i className="fas fa-heartbeat mr-2 text-danger"></i>
               健康状况
             </h3>
             
@@ -266,7 +266,7 @@ function App() {
             {/* 处理建议 */}
             <div className="bg-blue-50 p-4 rounded-lg">
               <p className="text-sm font-semibold text-secondary mb-2">
-                <i className="fa fa-lightbulb mr-1"></i>
+                <i className="fas fa-lightbulb mr-1"></i>
                 处理建议
               </p>
               <p className="text-sm text-dark">{result.treatment_suggestion}</p>
@@ -288,7 +288,7 @@ function App() {
     <div className="p-4 pb-20">
       <div className="flex justify-between items-center mb-4">
         <button onClick={() => setShowCapturePage(false)} className="text-medium p-2">
-          <i className="fa fa-arrow-left"></i>
+          <i className="fas fa-arrow-left"></i>
         </button>
         <h2 className="text-xl font-bold text-dark">拍摄植物照片</h2>
         <div className="w-8"></div>
@@ -311,7 +311,7 @@ function App() {
           <img src={preview} alt="预览图" className="w-full h-full object-contain" />
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <i className="fa fa-camera text-4xl text-gray-400 mb-2"></i>
+            <i className="fas fa-camera text-4xl text-gray-400 mb-2"></i>
             <p className="text-gray-500">选择照片进行检测</p>
           </div>
         )}
@@ -323,7 +323,7 @@ function App() {
           onClick={() => captureFileInputRef.current?.click()}
           className="bg-gray-200 text-dark p-3 rounded-full"
         >
-          <i className="fa fa-image"></i>
+          <i className="fas fa-image"></i>
         </button>
         <button 
           onClick={() => {
@@ -336,7 +336,7 @@ function App() {
           }}
           className="bg-primary text-white p-4 rounded-full btn-shadow"
         >
-          <i className="fa fa-camera text-xl"></i>
+          <i className="fas fa-camera text-xl"></i>
         </button>
         <button 
           onClick={() => {
@@ -345,7 +345,7 @@ function App() {
           }}
           className="bg-gray-200 text-dark p-3 rounded-full"
         >
-          <i className="fa fa-refresh"></i>
+          <i className="fas fa-refresh"></i>
         </button>
       </div>
       
@@ -385,7 +385,7 @@ function App() {
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-bold text-dark">商城</h2>
         <button className="text-secondary p-2 relative">
-          <i className="fa fa-shopping-cart"></i>
+          <i className="fas fa-shopping-cart"></i>
           <span className="absolute top-0 right-0 w-4 h-4 bg-danger rounded-full text-white text-xs flex items-center justify-center">0</span>
         </button>
       </div>
@@ -405,7 +405,7 @@ function App() {
         <div className="grid grid-cols-2 gap-4">
           <div className="bg-white rounded-lg overflow-hidden card-shadow">
             <div className="w-full h-32 bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center">
-              <i className="fa fa-leaf text-white text-4xl"></i>
+              <i className="fas fa-leaf text-white text-4xl"></i>
             </div>
             <div className="p-3">
               <h4 className="font-medium text-dark text-sm mb-1">植物营养液</h4>
@@ -414,7 +414,7 @@ function App() {
                 <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">适用: 缺肥</span>
               </div>
               <button className="w-full bg-primary/10 text-primary text-sm py-1.5 rounded flex items-center justify-center">
-                <i className="fa fa-shopping-cart mr-1"></i>
+                <i className="fas fa-shopping-cart mr-1"></i>
                 <span>加入购物车</span>
               </button>
             </div>
@@ -422,7 +422,7 @@ function App() {
           
           <div className="bg-white rounded-lg overflow-hidden card-shadow">
             <div className="w-full h-32 bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center">
-              <i className="fa fa-bug text-white text-4xl"></i>
+              <i className="fas fa-bug text-white text-4xl"></i>
             </div>
             <div className="p-3">
               <h4 className="font-medium text-dark text-sm mb-1">杀虫剂</h4>
@@ -431,7 +431,7 @@ function App() {
                 <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">适用: 虫害</span>
               </div>
               <button className="w-full bg-primary/10 text-primary text-sm py-1.5 rounded flex items-center justify-center">
-                <i className="fa fa-shopping-cart mr-1"></i>
+                <i className="fas fa-shopping-cart mr-1"></i>
                 <span>加入购物车</span>
               </button>
             </div>
@@ -445,7 +445,7 @@ function App() {
         <div className="grid grid-cols-2 gap-4">
           <div className="bg-white rounded-lg overflow-hidden card-shadow">
             <div className="w-full h-32 bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center">
-              <i className="fa fa-tint text-white text-4xl"></i>
+              <i className="fas fa-tint text-white text-4xl"></i>
             </div>
             <div className="p-3">
               <h4 className="font-medium text-dark text-sm mb-1">有机营养土</h4>
@@ -454,7 +454,7 @@ function App() {
                 <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">土壤改良</span>
               </div>
               <button className="w-full bg-primary/10 text-primary text-sm py-1.5 rounded flex items-center justify-center">
-                <i className="fa fa-shopping-cart mr-1"></i>
+                <i className="fas fa-shopping-cart mr-1"></i>
                 <span>加入购物车</span>
               </button>
             </div>
@@ -462,7 +462,7 @@ function App() {
 
           <div className="bg-white rounded-lg overflow-hidden card-shadow">
             <div className="w-full h-32 bg-gradient-to-br from-red-400 to-pink-500 flex items-center justify-center">
-              <i className="fa fa-medkit text-white text-4xl"></i>
+              <i className="fas fa-medkit text-white text-4xl"></i>
             </div>
             <div className="p-3">
               <h4 className="font-medium text-dark text-sm mb-1">植物修复剂</h4>
@@ -471,7 +471,7 @@ function App() {
                 <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">病害治疗</span>
               </div>
               <button className="w-full bg-primary/10 text-primary text-sm py-1.5 rounded flex items-center justify-center">
-                <i className="fa fa-shopping-cart mr-1"></i>
+                <i className="fas fa-shopping-cart mr-1"></i>
                 <span>加入购物车</span>
               </button>
             </div>
@@ -487,14 +487,14 @@ function App() {
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-bold text-dark">我的</h2>
         <button className="text-medium p-2">
-          <i className="fa fa-cog"></i>
+          <i className="fas fa-cog"></i>
         </button>
       </div>
       
       {/* 用户信息 */}
       <div className="bg-white rounded-lg p-4 mb-6 card-shadow flex items-center">
         <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-primary text-2xl mr-4">
-          <i className="fa fa-user"></i>
+          <i className="fas fa-user"></i>
         </div>
         <div className="flex-1">
           {isAuthenticated ? (
@@ -523,25 +523,25 @@ function App() {
         <div className="grid grid-cols-4 gap-3 text-center">
           <button className="flex flex-col items-center">
             <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center text-success mb-1">
-              <i className="fa fa-leaf"></i>
+              <i className="fas fa-leaf"></i>
             </div>
             <span className="text-xs text-dark">我的植物</span>
           </button>
           <button className="flex flex-col items-center">
             <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-secondary mb-1">
-              <i className="fa fa-history"></i>
+              <i className="fas fa-history"></i>
             </div>
             <span className="text-xs text-dark">诊断历史</span>
           </button>
           <button className="flex flex-col items-center">
             <div className="w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center text-warning mb-1">
-              <i className="fa fa-bell"></i>
+              <i className="fas fa-bell"></i>
             </div>
             <span className="text-xs text-dark">提醒消息</span>
           </button>
           <button className="flex flex-col items-center">
             <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 mb-1">
-              <i className="fa fa-cog"></i>
+              <i className="fas fa-cog"></i>
             </div>
             <span className="text-xs text-dark">设置</span>
           </button>
@@ -566,29 +566,29 @@ function App() {
           <button className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50">
             <div className="flex items-center">
               <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-secondary mr-3">
-                <i className="fa fa-history"></i>
+                <i className="fas fa-history"></i>
               </div>
               <span className="text-dark">诊断历史</span>
             </div>
-            <i className="fa fa-angle-right text-gray-400"></i>
+            <i className="fas fa-angle-right text-gray-400"></i>
           </button>
           <button className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50">
             <div className="flex items-center">
               <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-success mr-3">
-                <i className="fa fa-trophy"></i>
+                <i className="fas fa-trophy"></i>
               </div>
               <span className="text-dark">我的成就</span>
             </div>
-            <i className="fa fa-angle-right text-gray-400"></i>
+            <i className="fas fa-angle-right text-gray-400"></i>
           </button>
           <button className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50">
             <div className="flex items-center">
               <div className="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center text-warning mr-3">
-                <i className="fa fa-question-circle"></i>
+                <i className="fas fa-question-circle"></i>
               </div>
               <span className="text-dark">帮助与反馈</span>
             </div>
-            <i className="fa fa-angle-right text-gray-400"></i>
+            <i className="fas fa-angle-right text-gray-400"></i>
           </button>
         </div>
       </div>
@@ -614,21 +614,21 @@ function App() {
             className={`flex flex-col items-center justify-center px-4 py-1 ${currentPage === 'detection' ? 'text-primary' : 'text-medium'}`}
             onClick={() => setCurrentPage('detection')}
           >
-            <i className="fa fa-camera text-lg"></i>
+            <i className="fas fa-camera text-lg"></i>
             <span className="text-xs mt-1">健康检测</span>
           </button>
           <button
             className={`flex flex-col items-center justify-center px-4 py-1 ${currentPage === 'shop' ? 'text-primary' : 'text-medium'}`}
             onClick={() => setCurrentPage('shop')}
           >
-            <i className="fa fa-shopping-bag text-lg"></i>
+            <i className="fas fa-shopping-bag text-lg"></i>
             <span className="text-xs mt-1">商城</span>
           </button>
           <button
             className={`flex flex-col items-center justify-center px-4 py-1 ${currentPage === 'profile' ? 'text-primary' : 'text-medium'}`}
             onClick={() => setCurrentPage('profile')}
           >
-            <i className="fa fa-user text-lg"></i>
+            <i className="fas fa-user text-lg"></i>
             <span className="text-xs mt-1">我的</span>
           </button>
         </nav>
@@ -641,7 +641,7 @@ function App() {
               <div className="flex justify-between items-center mb-6">
                 <h3 id="auth-modal-title" className="text-xl font-bold text-dark">{showAuthForm === 'login' ? '登录' : '注册'}</h3>
                 <button onClick={() => setShowAuthModal(false)} className="text-medium" aria-label="关闭">
-                  <i className="fa fa-times"></i>
+                  <i className="fas fa-times"></i>
                 </button>
               </div>
 
@@ -664,7 +664,7 @@ function App() {
                 <form onSubmit={handleLogin} className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-medium mb-1">
-                      <i className="fa fa-user mr-1"></i>用户名
+                      <i className="fas fa-user mr-1"></i>用户名
                     </label>
                     <input
                       type="text"
@@ -676,7 +676,7 @@ function App() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-medium mb-1">
-                      <i className="fa fa-lock mr-1"></i>密码
+                      <i className="fas fa-lock mr-1"></i>密码
                     </label>
                     <input
                       type="password"
@@ -698,7 +698,7 @@ function App() {
                 <form onSubmit={handleRegister} className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-medium mb-1">
-                      <i className="fa fa-user mr-1"></i>用户名
+                      <i className="fas fa-user mr-1"></i>用户名
                     </label>
                     <input
                       type="text"
@@ -711,7 +711,7 @@ function App() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-medium mb-1">
-                      <i className="fa fa-envelope mr-1"></i>邮箱
+                      <i className="fas fa-envelope mr-1"></i>邮箱
                     </label>
                     <input
                       type="email"
@@ -723,7 +723,7 @@ function App() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-medium mb-1">
-                      <i className="fa fa-lock mr-1"></i>密码
+                      <i className="fas fa-lock mr-1"></i>密码
                     </label>
                     <input
                       type="password"
