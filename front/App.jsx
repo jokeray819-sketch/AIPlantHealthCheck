@@ -134,19 +134,33 @@ function App() {
   // 未登录时显示登录/注册表单
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-green-50 p-8 flex flex-col items-center justify-center">
-        <h1 className="text-3xl font-bold text-green-800 mb-8">🌿 AI 植物健康助手</h1>
+      <div className="min-h-screen bg-gray-50 p-8 flex flex-col items-center justify-center">
+        {/* 顶部横幅 */}
+        <div className="bg-gradient-to-r from-primary to-secondary rounded-lg p-6 mb-6 text-white relative overflow-hidden max-w-md w-full">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
+          <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full -ml-12 -mb-12"></div>
+          <h1 className="text-3xl font-bold mb-2 text-shadow relative z-10">
+            <i className="fa fa-leaf mr-2"></i>
+            AI植物医生
+          </h1>
+          <p className="text-lg mb-4 relative z-10">一秒识别植物健康问题，智能提供解决方案</p>
+          <div className="flex flex-wrap gap-2 relative z-10">
+            <span className="bg-white/20 text-white text-xs px-3 py-1 rounded-full">50+植物品种</span>
+            <span className="bg-white/20 text-white text-xs px-3 py-1 rounded-full">专业养护建议</span>
+            <span className="bg-white/20 text-white text-xs px-3 py-1 rounded-full">AI智能识别</span>
+          </div>
+        </div>
         
-        <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
+        <div className="bg-white p-8 rounded-xl card-shadow w-full max-w-md">
           <div className="flex mb-6 border-b">
             <button
-              className={`flex-1 py-2 ${showAuthForm === 'login' ? 'border-b-2 border-green-600 text-green-600 font-bold' : 'text-gray-500'}`}
+              className={`flex-1 py-2 ${showAuthForm === 'login' ? 'border-b-2 border-primary text-primary font-bold' : 'text-medium'}`}
               onClick={() => setShowAuthForm('login')}
             >
               登录
             </button>
             <button
-              className={`flex-1 py-2 ${showAuthForm === 'register' ? 'border-b-2 border-green-600 text-green-600 font-bold' : 'text-gray-500'}`}
+              className={`flex-1 py-2 ${showAuthForm === 'register' ? 'border-b-2 border-primary text-primary font-bold' : 'text-medium'}`}
               onClick={() => setShowAuthForm('register')}
             >
               注册
@@ -156,29 +170,33 @@ function App() {
           {showAuthForm === 'login' ? (
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">用户名</label>
+                <label className="block text-sm font-medium text-medium mb-1">
+                  <i className="fa fa-user mr-1"></i>用户名
+                </label>
                 <input
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">密码</label>
+                <label className="block text-sm font-medium text-medium mb-1">
+                  <i className="fa fa-lock mr-1"></i>密码
+                </label>
                 <input
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
                   required
                 />
               </div>
               <button
                 type="submit"
                 disabled={loading}
-                className={`w-full py-3 rounded-lg font-bold text-white transition ${loading ? 'bg-gray-400' : 'bg-green-600 hover:bg-green-700'}`}
+                className={`w-full py-3 rounded-lg font-medium text-white btn-shadow transition ${loading ? 'bg-gray-400' : 'bg-primary hover:bg-primary/90'}`}
               >
                 {loading ? '登录中...' : '登录'}
               </button>
@@ -186,33 +204,39 @@ function App() {
           ) : (
             <form onSubmit={handleRegister} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">用户名</label>
+                <label className="block text-sm font-medium text-medium mb-1">
+                  <i className="fa fa-user mr-1"></i>用户名
+                </label>
                 <input
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
                   minLength="3"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">邮箱</label>
+                <label className="block text-sm font-medium text-medium mb-1">
+                  <i className="fa fa-envelope mr-1"></i>邮箱
+                </label>
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">密码</label>
+                <label className="block text-sm font-medium text-medium mb-1">
+                  <i className="fa fa-lock mr-1"></i>密码
+                </label>
                 <input
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
                   minLength="6"
                   required
                 />
@@ -220,7 +244,7 @@ function App() {
               <button
                 type="submit"
                 disabled={loading}
-                className={`w-full py-3 rounded-lg font-bold text-white transition ${loading ? 'bg-gray-400' : 'bg-green-600 hover:bg-green-700'}`}
+                className={`w-full py-3 rounded-lg font-medium text-white btn-shadow transition ${loading ? 'bg-gray-400' : 'bg-primary hover:bg-primary/90'}`}
               >
                 {loading ? '注册中...' : '注册'}
               </button>
@@ -233,64 +257,142 @@ function App() {
 
   // 已登录时显示主应用
   return (
-    <div className="min-h-screen bg-green-50 p-8 flex flex-col items-center">
-      <div className="w-full max-w-md mb-4 flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-green-800">🌿 AI 植物健康助手</h1>
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-gray-600">欢迎, {currentUser?.username}</span>
-          <button
-            onClick={handleLogout}
-            className="px-4 py-2 text-sm bg-red-500 hover:bg-red-600 text-white rounded-lg transition"
-          >
-            登出
-          </button>
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center">
+      <div className="w-full max-w-md bg-white min-h-screen relative">
+        {/* 顶部横幅 */}
+        <div className="bg-gradient-to-r from-primary to-secondary rounded-b-lg p-6 mb-6 text-white relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
+          <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full -ml-12 -mb-12"></div>
+          <div className="flex justify-between items-center mb-2 relative z-10">
+            <h1 className="text-3xl font-bold text-shadow">
+              <i className="fa fa-leaf mr-2"></i>
+              AI植物医生
+            </h1>
+            <button
+              onClick={handleLogout}
+              className="px-3 py-1.5 text-sm bg-white/20 hover:bg-white/30 text-white rounded-lg transition"
+            >
+              <i className="fa fa-sign-out mr-1"></i>
+              登出
+            </button>
+          </div>
+          <p className="text-sm mb-2 relative z-10">欢迎, {currentUser?.username}</p>
+          <p className="text-lg relative z-10">一秒识别植物健康问题，智能提供解决方案</p>
         </div>
-      </div>
 
-      {/* 上传区域 */}
-      <div className="bg-white p-6 rounded-xl shadow-md w-full max-w-md border-2 border-dashed border-green-200 text-center">
-        {preview ? (
-          <img src={preview} alt="预览" className="max-h-64 mx-auto rounded-lg mb-4" />
-        ) : (
-          <div className="py-12 text-gray-400">请上传植物叶片照片</div>
-        )}
-        
-        <input 
-          type="file" 
-          onChange={handleFileChange} 
-          className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100 mb-4"
-          accept="image/*"
-        />
-
-        <button 
-          onClick={handleSubmit}
-          disabled={loading}
-          className={`w-full py-3 rounded-lg font-bold text-white transition ${loading ? 'bg-gray-400' : 'bg-green-600 hover:bg-green-700'}`}
-        >
-          {loading ? '识别中...' : '开始智能检测'}
-        </button>
-      </div>
-
-      {/* 结果展示区域 */}
-      {result && (
-        <div className="mt-8 bg-white p-6 rounded-xl shadow-lg w-full max-w-md animate-fade-in">
-          <h2 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2">检测报告</h2>
-          <div className="space-y-3">
-            <p><span className="font-semibold text-gray-600">植物名称：</span> {result.plant_name}</p>
-            <p>
-              <span className="font-semibold text-gray-600">健康状态：</span> 
-              <span className={`ml-2 px-2 py-1 rounded text-sm ${result.status === '健康' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                {result.status}
-              </span>
-            </p>
-            <p><span className="font-semibold text-gray-600">置信度：</span> {(result.confidence * 100).toFixed(1)}%</p>
-            <div className="bg-orange-50 p-4 rounded-lg mt-4">
-              <p className="text-sm font-semibold text-orange-800 mb-1">💡 处理建议：</p>
-              <p className="text-sm text-orange-700">{result.treatment_suggestion}</p>
+        {/* 核心功能展示 */}
+        <div className="px-4 mb-8">
+          <h2 className="text-xl font-bold text-dark mb-4">核心功能</h2>
+          <div className="grid grid-cols-3 gap-4 text-center">
+            <div className="bg-white rounded-lg p-4 card-shadow">
+              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary mx-auto mb-2">
+                <i className="fa fa-leaf text-xl"></i>
+              </div>
+              <h3 className="font-semibold text-dark mb-1 text-sm">品种识别</h3>
+              <p className="text-xs text-medium">AI智能识别</p>
+            </div>
+            <div className="bg-white rounded-lg p-4 card-shadow">
+              <div className="w-12 h-12 rounded-full bg-warning/10 flex items-center justify-center text-warning mx-auto mb-2">
+                <i className="fa fa-stethoscope text-xl"></i>
+              </div>
+              <h3 className="font-semibold text-dark mb-1 text-sm">健康诊断</h3>
+              <p className="text-xs text-medium">精准判断</p>
+            </div>
+            <div className="bg-white rounded-lg p-4 card-shadow">
+              <div className="w-12 h-12 rounded-full bg-secondary/10 flex items-center justify-center text-secondary mx-auto mb-2">
+                <i className="fa fa-lightbulb-o text-xl"></i>
+              </div>
+              <h3 className="font-semibold text-dark mb-1 text-sm">智能建议</h3>
+              <p className="text-xs text-medium">专业方案</p>
             </div>
           </div>
         </div>
-      )}
+
+        {/* 上传区域 */}
+        <div className="px-4 mb-8">
+          <h2 className="text-xl font-bold text-dark mb-4">植物检测</h2>
+          <div className="bg-white p-6 rounded-xl card-shadow border-2 border-dashed border-primary/20">
+            {preview ? (
+              <div className="mb-4">
+                <img src={preview} alt="预览" className="max-h-64 w-full object-contain rounded-lg" />
+              </div>
+            ) : (
+              <div className="py-12 text-center">
+                <i className="fa fa-camera text-4xl text-gray-300 mb-2"></i>
+                <p className="text-medium">请上传植物叶片照片</p>
+              </div>
+            )}
+            
+            <input 
+              type="file" 
+              onChange={handleFileChange} 
+              className="block w-full text-sm text-medium file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary/10 file:text-primary hover:file:bg-primary/20 mb-4 cursor-pointer"
+              accept="image/*"
+            />
+
+            <button 
+              onClick={handleSubmit}
+              disabled={loading || !selectedFile}
+              className={`w-full py-3 rounded-lg font-medium text-white btn-shadow transition flex items-center justify-center gap-2 ${loading || !selectedFile ? 'bg-gray-400' : 'bg-primary hover:bg-primary/90'}`}
+            >
+              <i className={`fa ${loading ? 'fa-spinner fa-spin' : 'fa-check-circle'}`}></i>
+              <span>{loading ? '识别中...' : '开始智能检测'}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* 结果展示区域 */}
+        {result && (
+          <div className="px-4 mb-8">
+            <h2 className="text-xl font-bold text-dark mb-4">
+              <i className="fa fa-file-text-o mr-2"></i>
+              诊断结果
+            </h2>
+            
+            {/* 植物信息 */}
+            <div className="bg-white rounded-lg p-4 mb-4 card-shadow">
+              <div className="flex justify-between items-center mb-2">
+                <h3 className="text-lg font-bold text-dark">{result.plant_name}</h3>
+                <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                  置信度: {(result.confidence * 100).toFixed(1)}%
+                </span>
+              </div>
+            </div>
+            
+            {/* 健康状况 */}
+            <div className="bg-white rounded-lg p-4 mb-4 card-shadow">
+              <h3 className="font-semibold text-dark mb-3">
+                <i className="fa fa-heartbeat mr-2 text-danger"></i>
+                健康状况
+              </h3>
+              
+              <div className="mb-3">
+                <p className="text-sm text-medium mb-1">问题判断</p>
+                <p className="font-medium text-dark">
+                  <span className={`inline-block px-3 py-1 rounded-full text-sm ${result.status === '健康' ? 'bg-green-100 text-green-700' : 'bg-warning/20 text-warning'}`}>
+                    {result.status}
+                  </span>
+                </p>
+              </div>
+              
+              {/* 处理建议 */}
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <p className="text-sm font-semibold text-secondary mb-2">
+                  <i className="fa fa-lightbulb-o mr-1"></i>
+                  处理建议
+                </p>
+                <p className="text-sm text-dark">{result.treatment_suggestion}</p>
+              </div>
+            </div>
+            
+            {/* 免责声明 */}
+            <div className="text-xs text-medium text-center bg-white p-3 rounded-lg card-shadow">
+              <p>免责声明：AI 建议仅供参考，不等同于专业医疗建议。</p>
+              <p>如有严重问题，请咨询专业园艺师。</p>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
