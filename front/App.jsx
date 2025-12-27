@@ -4,6 +4,7 @@ import axios from 'axios';
 function App() {
   // 页面导航状态
   const [currentPage, setCurrentPage] = useState('detection'); // 'detection', 'shop', 'profile'
+  const [showCapturePage, setShowCapturePage] = useState(false); // 显示拍照/上传页面
   
   // 植物识别相关状态
   const [selectedFile, setSelectedFile] = useState(null);
@@ -180,38 +181,51 @@ function App() {
         </div>
       </div>
 
-      {/* 上传区域 */}
-      <div className="mb-8">
-        <h2 className="text-xl font-bold text-dark mb-4">植物检测</h2>
-        <div className="bg-white p-6 rounded-xl card-shadow border-2 border-dashed border-primary/20">
-          {preview ? (
+      {/* 检测按钮 */}
+      <div className="flex flex-col gap-4 mb-8">
+        <button 
+          onClick={() => setShowCapturePage(true)}
+          className="bg-primary text-white py-5 px-6 rounded-lg flex items-center justify-center gap-2 btn-shadow transition hover:bg-primary/90 text-lg"
+        >
+          <i className="fa fa-camera text-2xl"></i>
+          <span>立即拍照检测</span>
+        </button>
+        <button 
+          onClick={() => {
+            document.getElementById('file-input-hidden').click();
+          }}
+          className="bg-white text-primary border border-primary py-5 px-6 rounded-lg flex items-center justify-center gap-2 btn-shadow transition hover:bg-primary/5 text-lg"
+        >
+          <i className="fa fa-upload text-2xl"></i>
+          <span>上传图片检测</span>
+        </button>
+        <input 
+          id="file-input-hidden"
+          type="file" 
+          onChange={handleFileChange} 
+          className="hidden"
+          accept="image/*"
+        />
+      </div>
+
+      {/* 预览和识别按钮 */}
+      {preview && (
+        <div className="mb-8">
+          <div className="bg-white p-6 rounded-xl card-shadow">
             <div className="mb-4">
               <img src={preview} alt="预览" className="max-h-64 w-full object-contain rounded-lg" />
             </div>
-          ) : (
-            <div className="py-12 text-center">
-              <i className="fa fa-camera text-4xl text-gray-300 mb-2"></i>
-              <p className="text-medium">请上传植物叶片照片</p>
-            </div>
-          )}
-          
-          <input 
-            type="file" 
-            onChange={handleFileChange} 
-            className="block w-full text-sm text-medium file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary/10 file:text-primary hover:file:bg-primary/20 mb-4 cursor-pointer"
-            accept="image/*"
-          />
-
-          <button 
-            onClick={handleSubmit}
-            disabled={loading || !selectedFile}
-            className={`w-full py-3 rounded-lg font-medium text-white btn-shadow transition flex items-center justify-center gap-2 ${loading || !selectedFile ? 'bg-gray-400' : 'bg-primary hover:bg-primary/90'}`}
-          >
-            <i className={`fa ${loading ? 'fa-spinner fa-spin' : 'fa-check-circle'}`}></i>
-            <span>{loading ? '识别中...' : '开始智能检测'}</span>
-          </button>
+            <button 
+              onClick={handleSubmit}
+              disabled={loading}
+              className={`w-full py-3 rounded-lg font-medium text-white btn-shadow transition flex items-center justify-center gap-2 ${loading ? 'bg-gray-400' : 'bg-primary hover:bg-primary/90'}`}
+            >
+              <i className={`fa ${loading ? 'fa-spinner fa-spin' : 'fa-check-circle'}`}></i>
+              <span>{loading ? '识别中...' : '开始智能检测'}</span>
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* 结果展示区域 */}
       {result && (
@@ -263,6 +277,102 @@ function App() {
             <p>如有严重问题，请咨询专业园艺师。</p>
           </div>
         </div>
+      )}
+    </div>
+  );
+
+  // 渲染拍照/上传页面
+  const renderCapturePage = () => (
+    <div className="p-4 pb-20">
+      <div className="flex justify-between items-center mb-4">
+        <button onClick={() => setShowCapturePage(false)} className="text-medium p-2">
+          <i className="fa fa-arrow-left"></i>
+        </button>
+        <h2 className="text-xl font-bold text-dark">拍摄植物照片</h2>
+        <div className="w-8"></div>
+      </div>
+      
+      {/* 拍照指导 */}
+      <div className="bg-blue-50 text-secondary p-4 rounded-lg mb-4">
+        <h3 className="font-semibold mb-1">拍摄建议</h3>
+        <ul className="text-sm space-y-1">
+          <li>• 确保植物光线充足</li>
+          <li>• 聚焦在有问题的叶片上</li>
+          <li>• 保持相机稳定，避免模糊</li>
+          <li>• 尽量填满画面，减少背景干扰</li>
+        </ul>
+      </div>
+      
+      {/* 预览区域 */}
+      <div className="w-full h-64 bg-gray-200 rounded-lg mb-4 overflow-hidden relative">
+        {preview ? (
+          <img src={preview} alt="预览图" className="w-full h-full object-contain" />
+        ) : (
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <i className="fa fa-camera text-4xl text-gray-400 mb-2"></i>
+            <p className="text-gray-500">选择照片进行检测</p>
+          </div>
+        )}
+      </div>
+      
+      {/* 操作按钮 */}
+      <div className="flex justify-center gap-6 mb-4">
+        <button 
+          onClick={() => document.getElementById('capture-file-input').click()}
+          className="bg-gray-200 text-dark p-3 rounded-full"
+        >
+          <i className="fa fa-image"></i>
+        </button>
+        <button 
+          onClick={() => {
+            if (preview) {
+              handleSubmit();
+              setShowCapturePage(false);
+            } else {
+              document.getElementById('capture-file-input').click();
+            }
+          }}
+          className="bg-primary text-white p-4 rounded-full btn-shadow"
+        >
+          <i className="fa fa-camera text-xl"></i>
+        </button>
+        <button 
+          onClick={() => {
+            setPreview(null);
+            setSelectedFile(null);
+          }}
+          className="bg-gray-200 text-dark p-3 rounded-full"
+        >
+          <i className="fa fa-refresh"></i>
+        </button>
+      </div>
+      
+      <input 
+        id="capture-file-input"
+        type="file" 
+        onChange={(e) => {
+          handleFileChange(e);
+        }}
+        className="hidden"
+        accept="image/*"
+        capture="environment"
+      />
+      
+      <p className="text-center text-sm text-medium">或从相册选择照片</p>
+      
+      {/* 识别按钮 */}
+      {preview && (
+        <button 
+          onClick={() => {
+            handleSubmit();
+            setShowCapturePage(false);
+          }}
+          disabled={loading}
+          className={`w-full mt-4 py-3 rounded-lg font-medium text-white btn-shadow transition flex items-center justify-center gap-2 ${loading ? 'bg-gray-400' : 'bg-primary hover:bg-primary/90'}`}
+        >
+          <i className={`fa ${loading ? 'fa-spinner fa-spin' : 'fa-check-circle'}`}></i>
+          <span>{loading ? '识别中...' : '开始智能检测'}</span>
+        </button>
       )}
     </div>
   );
@@ -487,12 +597,17 @@ function App() {
     <div className="min-h-screen bg-gray-50 flex flex-col items-center">
       <div className="w-full max-w-md bg-white min-h-screen relative">
         {/* 页面内容 */}
-        {currentPage === 'detection' && renderDetectionPage()}
-        {currentPage === 'shop' && renderShopPage()}
-        {currentPage === 'profile' && renderProfilePage()}
+        {showCapturePage ? renderCapturePage() : (
+          <>
+            {currentPage === 'detection' && renderDetectionPage()}
+            {currentPage === 'shop' && renderShopPage()}
+            {currentPage === 'profile' && renderProfilePage()}
+          </>
+        )}
 
         {/* 底部导航栏 */}
-        <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white border-t border-gray-200 flex justify-around py-2 z-10">
+        {!showCapturePage && (
+          <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white border-t border-gray-200 flex justify-around py-2 z-10">
           <button
             className={`flex flex-col items-center justify-center px-4 py-1 ${currentPage === 'detection' ? 'text-primary' : 'text-medium'}`}
             onClick={() => setCurrentPage('detection')}
@@ -515,6 +630,7 @@ function App() {
             <span className="text-xs mt-1">我的</span>
           </button>
         </nav>
+        )}
 
         {/* 登录/注册模态框 */}
         {showAuthModal && (
