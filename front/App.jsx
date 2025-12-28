@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 
+// 常量定义
+const AI_ANALYSIS_DELAY = 1500; // AI分析页面显示时间（毫秒）
+
 function App() {
   // 页面导航状态
   const [currentPage, setCurrentPage] = useState('detection'); // 'detection', 'shop', 'profile'
@@ -139,7 +142,7 @@ function App() {
       setTimeout(() => {
         setShowAnalyzingPage(false);
         setShowResultPage(true);
-      }, 1500); // 模拟分析过程，1.5秒后显示结果
+      }, AI_ANALYSIS_DELAY);
     } catch (error) {
       console.error("识别出错:", error);
       setShowAnalyzingPage(false);
