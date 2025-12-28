@@ -86,10 +86,38 @@ async def read_users_me(current_user: User = Depends(get_current_user)):
 # 模拟 AI 推理过程 (实际开发时这里替换为你的 PyTorch/TensorFlow 模型)
 def mock_ai_inference(image: Image.Image):
     # 这里通常会有模型预测逻辑: model.predict(image)
+    # 根据设计文件中的三种测试结果，返回不同的诊断结果
     results = [
-        {"plant_name": "番茄", "status": "健康", "suggestion": "保持当前光照和浇水频率。"},
-        {"plant_name": "番茄", "status": "早疫病", "suggestion": "建议使用波尔多液进行喷洒，并修剪病叶。"},
-        {"plant_name": "月季", "status": "黑斑病", "suggestion": "减少叶面喷水，保持通风，及时清理落叶。"}
+        # 结果1: 健康植物
+        {
+            "plant_name": "绿萝", 
+            "status": "健康", 
+            "suggestion": "您的植物状态良好！继续保持当前的养护方式，定期浇水，保持适当光照。建议每2-3天浇水一次，避免积水。"
+        },
+        # 结果2: 早疫病
+        {
+            "plant_name": "番茄", 
+            "status": "早疫病", 
+            "suggestion": "检测到早疫病症状。建议立即采取以下措施：1) 移除并销毁受感染的叶片；2) 使用波尔多液或代森锰锌进行喷洒；3) 改善通风条件；4) 减少叶面喷水。"
+        },
+        # 结果3: 黑斑病
+        {
+            "plant_name": "月季", 
+            "status": "黑斑病", 
+            "suggestion": "检测到黑斑病。处理方案：1) 及时清理落叶和病叶；2) 使用杀菌剂（如多菌灵）每7-10天喷洒一次；3) 保持良好通风；4) 避免晚间浇水，减少叶面湿度。"
+        },
+        # 结果4: 缺肥症状
+        {
+            "plant_name": "吊兰", 
+            "status": "缺肥", 
+            "suggestion": "植物显示缺肥症状。建议：1) 使用均衡型液态肥料，每2周施肥一次；2) 注意氮磷钾比例为20-20-20；3) 施肥后充分浇水；4) 避免过度施肥导致肥害。"
+        },
+        # 结果5: 虫害
+        {
+            "plant_name": "玫瑰", 
+            "status": "虫害", 
+            "suggestion": "检测到虫害。处理建议：1) 使用杀虫剂（如吡虫啉）喷洒叶片正反面；2) 对于少量害虫可手工清除；3) 保持环境清洁；4) 定期检查植物，早发现早治疗。"
+        }
     ]
     return random.choice(results)
 
