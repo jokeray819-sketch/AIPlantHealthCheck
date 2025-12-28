@@ -222,9 +222,11 @@ function App() {
           accept="image/*"
         />
       </div>
+    </div>
+  );
 
-      {/* 核心功能展示 */}
-      <div className="mb-8">
+  // 渲染拍照/上传页面
+  const renderCapturePage = () => (
     <div className="p-4 pb-20">
       <div className="flex justify-between items-center mb-4">
         <button onClick={() => setShowCapturePage(false)} className="text-medium p-2">
