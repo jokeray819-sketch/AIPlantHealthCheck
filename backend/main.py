@@ -25,6 +25,7 @@ from auth import (
 # 常量定义
 FREE_USER_MONTHLY_LIMIT = 5  # 免费用户每月检测次数限制
 UNLIMITED_DETECTIONS = -1  # VIP用户无限检测次数（使用-1表示）
+HOST = os.getenv("HOST", "0.0.0.0")
 
 # 创建数据库表
 Base.metadata.create_all(bind=engine)
@@ -184,6 +185,20 @@ def image_to_base64(image: Image.Image, format: str = "JPEG") -> str:
     return base64_string
 
 def ai_inference(image: Image.Image):
+    default_prompt = "你是一位植物专家，1.识别图片中的植物\n" + "2.诊断植物的健康状况\n" + "3.若植物健康出现异常，给出养护意见;要求按照如下responseBody格式输出：{\"plant_name\": \"绿萝\", \"status\": \"健康\", \"suggestion\": \"您的植物状态良好！继续保持当前的养护方式，定期浇水，保持适当光照。建议每2-3天浇水一次，避免积水。\"}"
+    # 读取 prompt.md 文件内容
+    prompt_file_path = os.path.join(os.path.dirname(__file__), "prompt.md")
+    try:
+        with open(prompt_file_path, "r", encoding="utf-8") as f:
+            prompt_content = f.read()
+        print("----- 读取 prompt.md 内容 -----")
+        print(prompt_content)
+    except FileNotFoundError:
+        print(f"警告: 未找到 prompt.md 文件，路径: {prompt_file_path}")
+        prompt_content = default_prompt
+    except Exception as e:
+        print(f"警告: 读取 prompt.md 文件时出错: {e}")
+        prompt_content = default_prompt
     # 请确保您已将 API Key 存储在环境变量 ARK_API_KEY 中
     # 初始化Ark客户端，从环境变量中读取您的API Key
     client = Ark(
@@ -208,9 +223,7 @@ def ai_inference(image: Image.Image):
                             "url": f"data:image/jpeg;base64,{image_to_base64(image)}"
                         },
                     },
-                    {"type": "text", "text": "你是一位植物专家，1.识别图片中的植物\n" + "2.诊断植物的健康状况\n" + "3.若植物健康出现异常，给出养护意见"},
-                    {"type": "text", "text": "要求按照如下responseBody格式输出："},
-                    {"type": "text", "text": "{\"plant_name\": \"绿萝\", \"status\": \"健康\", \"suggestion\": \"您的植物状态良好！继续保持当前的养护方式，定期浇水，保持适当光照。建议每2-3天浇水一次，避免积水。\""},
+                    {"type": "text", "text": prompt_content}
                 ],
             }
         ],

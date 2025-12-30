@@ -3,7 +3,8 @@ import axios from 'axios';
 
 // 常量定义
 const AI_ANALYSIS_DELAY = 1500; // AI分析页面显示时间（毫秒）
-const BASE_URL = 'http://192.168.11.252:8000';
+//const BASE_URL = 'http://192.168.11.252:8000';
+const BASE_URL = 'http://127.0.0.1:8000';
 
 function App() {
   // 页面导航状态
