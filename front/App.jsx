@@ -26,6 +26,9 @@ function App() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [currentUser, setCurrentUser] = useState(null);
+  
+  // 会员相关状态
+  const [membershipStatus, setMembershipStatus] = useState(null);
 
   // Refs for file inputs
   const fileInputRef = useRef(null);
@@ -47,9 +50,24 @@ function App() {
       });
       setCurrentUser(response.data);
       setIsAuthenticated(true);
+      // 获取会员状态
+      await fetchMembershipStatus(token);
     } catch (error) {
       localStorage.removeItem('token');
       setIsAuthenticated(false);
+    }
+  };
+
+  // 获取会员状态
+  const fetchMembershipStatus = async (token) => {
+    try {
+      const response = await axios.get(BASE_URL+'/membership/status', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      setMembershipStatus(response.data);
+    } catch (error) {
+      console.error('获取会员状态失败:', error);
+      setMembershipStatus(null);
     }
   };
 
@@ -101,6 +119,7 @@ function App() {
     localStorage.removeItem('token');
     setIsAuthenticated(false);
     setCurrentUser(null);
+    setMembershipStatus(null);
     setResult(null);
     setPreview(null);
     setSelectedFile(null);
@@ -139,6 +158,9 @@ function App() {
       });
       setResult(response.data);
       
+      // 刷新会员状态以更新剩余检测次数
+      await fetchMembershipStatus(token);
+      
       // 分析完成后跳转到诊断结果页面
       setTimeout(() => {
         setShowAnalyzingPage(false);
@@ -150,6 +172,8 @@ function App() {
       if (error.response?.status === 401) {
         alert("登录已过期，请重新登录");
         handleLogout();
+      } else if (error.response?.status === 403) {
+        alert(error.response?.data?.detail || "检测次数已用完");
       } else {
         alert("服务器连接失败，请检查后端是否启动");
       }
@@ -618,16 +642,28 @@ function App() {
       </div>
       
       {/* 会员信息 */}
-      <div className="bg-gradient-to-r from-primary to-secondary rounded-lg p-4 mb-6 text-white">
-        <div className="flex justify-between items-center mb-3">
-          <h3 className="font-semibold">会员状态</h3>
-          <span className="bg-white/20 text-white text-xs px-2 py-1 rounded-full">免费用户</span>
+      {isAuthenticated && (
+        <div className="bg-gradient-to-r from-primary to-secondary rounded-lg p-4 mb-6 text-white">
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="font-semibold">会员状态</h3>
+            <span className="bg-white/20 text-white text-xs px-2 py-1 rounded-full">
+              {membershipStatus?.is_vip ? 'VIP用户' : '免费用户'}
+            </span>
+          </div>
+          <p className="text-sm mb-3">
+            本月剩余诊断次数: <span className="font-bold">
+              {membershipStatus ? (
+                membershipStatus.is_vip ? '无限' : `${membershipStatus.remaining_detections}/5`
+              ) : '加载中...'}
+            </span>
+          </p>
+          {!membershipStatus?.is_vip && (
+            <button className="w-full bg-white text-primary font-medium py-2 rounded-lg btn-shadow transition hover:bg-white/90">
+              立即开通会员
+            </button>
+          )}
         </div>
-        <p className="text-sm mb-3">本月剩余诊断次数: <span className="font-bold">5/5</span></p>
-        <button className="w-full bg-white text-primary font-medium py-2 rounded-lg btn-shadow transition hover:bg-white/90">
-          立即开通会员
-        </button>
-      </div>
+      )}
 
       {/* 功能列表 */}
       <div className="bg-white rounded-lg overflow-hidden mb-6 card-shadow">
