@@ -1,10 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 
+// 常量定义
+const AI_ANALYSIS_DELAY = 1500; // AI分析页面显示时间（毫秒）
+const BASE_URL = 'http://192.168.11.252:8000';
+
 function App() {
   // 页面导航状态
   const [currentPage, setCurrentPage] = useState('detection'); // 'detection', 'shop', 'profile'
   const [showCapturePage, setShowCapturePage] = useState(false); // 显示拍照/上传页面
+  const [showAnalyzingPage, setShowAnalyzingPage] = useState(false); // 显示AI分析中页面
+  const [showResultPage, setShowResultPage] = useState(false); // 显示诊断结果页面
   
   // 植物识别相关状态
   const [selectedFile, setSelectedFile] = useState(null);
@@ -36,7 +42,7 @@ function App() {
   // 获取当前用户信息
   const fetchCurrentUser = async (token) => {
     try {
-      const response = await axios.get('http://localhost:8000/users/me', {
+      const response = await axios.get(BASE_URL+'/users/me', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       setCurrentUser(response.data);
@@ -52,7 +58,7 @@ function App() {
     e.preventDefault();
     setLoading(true);
     try {
-      const response = await axios.post('http://localhost:8000/register', {
+      const response = await axios.post(BASE_URL+'/register', {
         username,
         email,
         password
@@ -72,7 +78,7 @@ function App() {
     e.preventDefault();
     setLoading(true);
     try {
-      const response = await axios.post('http://localhost:8000/login', {
+      const response = await axios.post(BASE_URL+'/login', {
         username,
         password
       });
@@ -114,6 +120,10 @@ function App() {
   const handleSubmit = async () => {
     if (!selectedFile) return alert("请先选择一张图片");
 
+    // 进入AI分析中页面
+    setShowCapturePage(false);
+    setShowAnalyzingPage(true);
+
     const formData = new FormData();
     formData.append('file', selectedFile);
     
@@ -121,15 +131,22 @@ function App() {
 
     setLoading(true);
     try {
-      const response = await axios.post('http://localhost:8000/predict', formData, {
+      const response = await axios.post(BASE_URL+'/predict', formData, {
         headers: { 
           'Content-Type': 'multipart/form-data',
           'Authorization': `Bearer ${token}`
         }
       });
       setResult(response.data);
+      
+      // 分析完成后跳转到诊断结果页面
+      setTimeout(() => {
+        setShowAnalyzingPage(false);
+        setShowResultPage(true);
+      }, AI_ANALYSIS_DELAY);
     } catch (error) {
       console.error("识别出错:", error);
+      setShowAnalyzingPage(false);
       if (error.response?.status === 401) {
         alert("登录已过期，请重新登录");
         handleLogout();
@@ -195,7 +212,7 @@ function App() {
           <span>立即拍照检测</span>
         </button>
         <button 
-          onClick={() => fileInputRef.current?.click()}
+          onClick={() => setShowCapturePage(true)}
           className="bg-white text-primary border border-primary py-5 px-6 rounded-lg flex items-center justify-center gap-2 btn-shadow transition hover:bg-primary/5 text-lg"
         >
           <i className="fas fa-upload text-2xl"></i>
@@ -209,77 +226,6 @@ function App() {
           accept="image/*"
         />
       </div>
-
-      {/* 预览和识别按钮 */}
-      {preview && (
-        <div className="mb-8">
-          <div className="bg-white p-6 rounded-xl card-shadow">
-            <div className="mb-4">
-              <img src={preview} alt="预览" className="max-h-64 w-full object-contain rounded-lg" />
-            </div>
-            <button 
-              onClick={handleSubmit}
-              disabled={loading}
-              className={`w-full py-3 rounded-lg font-medium text-white btn-shadow transition flex items-center justify-center gap-2 ${loading ? 'bg-gray-400' : 'bg-primary hover:bg-primary/90'}`}
-            >
-              <i className={`fa ${loading ? 'fa-spinner fa-spin' : 'fa-check-circle'}`}></i>
-              <span>{loading ? '识别中...' : '开始智能检测'}</span>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* 结果展示区域 */}
-      {result && (
-        <div className="mb-8">
-          <h2 className="text-xl font-bold text-dark mb-4">
-            <i className="fas fa-file-text-o mr-2"></i>
-            诊断结果
-          </h2>
-          
-          {/* 植物信息 */}
-          <div className="bg-white rounded-lg p-4 mb-4 card-shadow">
-            <div className="flex justify-between items-center mb-2">
-              <h3 className="text-lg font-bold text-dark">{result.plant_name}</h3>
-              <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                置信度: {(result.confidence * 100).toFixed(1)}%
-              </span>
-            </div>
-          </div>
-          
-          {/* 健康状况 */}
-          <div className="bg-white rounded-lg p-4 mb-4 card-shadow">
-            <h3 className="font-semibold text-dark mb-3">
-              <i className="fas fa-heartbeat mr-2 text-danger"></i>
-              健康状况
-            </h3>
-            
-            <div className="mb-3">
-              <p className="text-sm text-medium mb-1">问题判断</p>
-              <p className="font-medium text-dark">
-                <span className={`inline-block px-3 py-1 rounded-full text-sm ${result.status === '健康' ? 'bg-green-100 text-green-700' : 'bg-warning/20 text-warning'}`}>
-                  {result.status}
-                </span>
-              </p>
-            </div>
-            
-            {/* 处理建议 */}
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <p className="text-sm font-semibold text-secondary mb-2">
-                <i className="fas fa-lightbulb mr-1"></i>
-                处理建议
-              </p>
-              <p className="text-sm text-dark">{result.treatment_suggestion}</p>
-            </div>
-          </div>
-          
-          {/* 免责声明 */}
-          <div className="text-xs text-medium text-center bg-white p-3 rounded-lg card-shadow">
-            <p>免责声明：AI 建议仅供参考，不等同于专业医疗建议。</p>
-            <p>如有严重问题，请咨询专业园艺师。</p>
-          </div>
-        </div>
-      )}
     </div>
   );
 
@@ -323,20 +269,19 @@ function App() {
           onClick={() => captureFileInputRef.current?.click()}
           className="bg-gray-200 text-dark p-3 rounded-full"
         >
-          <i className="fas fa-image"></i>
+          <i className="fas fa-image text-xl"></i>
         </button>
         <button 
           onClick={() => {
             if (preview) {
               handleSubmit();
-              setShowCapturePage(false);
             } else {
               captureFileInputRef.current?.click();
             }
           }}
-          className="bg-primary text-white p-4 rounded-full btn-shadow"
+          className="bg-primary text-white p-6 rounded-full btn-shadow text-2xl"
         >
-          <i className="fas fa-camera text-xl"></i>
+          <i className="fas fa-camera"></i>
         </button>
         <button 
           onClick={() => {
@@ -345,7 +290,7 @@ function App() {
           }}
           className="bg-gray-200 text-dark p-3 rounded-full"
         >
-          <i className="fas fa-refresh"></i>
+          <i className="fas fa-redo text-xl"></i>
         </button>
       </div>
       
@@ -360,21 +305,145 @@ function App() {
         capture="environment"
       />
       
-      <p className="text-center text-sm text-medium">或从相册选择照片</p>
-      
-      {/* 识别按钮 */}
-      {preview && (
-        <button 
-          onClick={() => {
-            handleSubmit();
-            setShowCapturePage(false);
-          }}
-          disabled={loading}
-          className={`w-full mt-4 py-3 rounded-lg font-medium text-white btn-shadow transition flex items-center justify-center gap-2 ${loading ? 'bg-gray-400' : 'bg-primary hover:bg-primary/90'}`}
-        >
-          <i className={`fa ${loading ? 'fa-spinner fa-spin' : 'fa-check-circle'}`}></i>
-          <span>{loading ? '识别中...' : '开始智能检测'}</span>
+      <p className="text-center text-sm text-medium">点击相机图标进行拍照或从相册选择</p>
+    </div>
+  );
+
+  // 渲染AI分析中页面
+  const renderAnalyzingPage = () => (
+    <div className="p-4 pb-20 min-h-screen flex flex-col items-center justify-center">
+      <div className="text-center">
+        {/* 分析动画 */}
+        <div className="w-32 h-32 mx-auto mb-6 relative">
+          <div className="absolute inset-0 rounded-full border-8 border-primary/20"></div>
+          <div className="absolute inset-0 rounded-full border-8 border-primary border-t-transparent animate-spin"></div>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <i className="fas fa-microscope text-4xl text-primary"></i>
+          </div>
+        </div>
+        
+        <h2 className="text-2xl font-bold text-dark mb-2">AI 分析中</h2>
+        <p className="text-medium mb-8">正在识别植物健康状况...</p>
+        
+        {/* 分析步骤 */}
+        <div className="space-y-3 text-left max-w-xs mx-auto">
+          <div className="flex items-center gap-3 bg-white p-3 rounded-lg card-shadow">
+            <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white">
+              <i className="fas fa-check"></i>
+            </div>
+            <span className="text-dark">图像预处理</span>
+          </div>
+          <div className="flex items-center gap-3 bg-white p-3 rounded-lg card-shadow">
+            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white">
+              <i className="fas fa-spinner fa-spin"></i>
+            </div>
+            <span className="text-dark">AI 模型分析</span>
+          </div>
+          <div className="flex items-center gap-3 bg-white p-3 rounded-lg card-shadow opacity-50">
+            <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-white">
+              <i className="fas fa-clock"></i>
+            </div>
+            <span className="text-medium">生成诊断报告</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // 渲染诊断结果页面
+  const renderResultPage = () => (
+    <div className="p-4 pb-20">
+      <div className="flex justify-between items-center mb-4">
+        <button onClick={() => {
+          setShowResultPage(false);
+          setPreview(null);
+          setSelectedFile(null);
+          setResult(null);
+        }} className="text-medium p-2">
+          <i className="fas fa-arrow-left"></i>
         </button>
+        <h2 className="text-xl font-bold text-dark">诊断结果</h2>
+        <div className="w-8"></div>
+      </div>
+      
+      {result && (
+        <>
+          {/* 植物图片 */}
+          {preview && (
+            <div className="mb-4">
+              <img src={preview} alt="植物照片" className="w-full h-48 object-cover rounded-lg" />
+            </div>
+          )}
+          
+          {/* 植物信息 */}
+          <div className="bg-white rounded-lg p-4 mb-4 card-shadow">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-lg font-bold text-dark">{result.plant_name}</h3>
+              <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                置信度: {(result.confidence * 100).toFixed(1)}%
+              </span>
+            </div>
+          </div>
+          
+          {/* 健康状况 */}
+          <div className="bg-white rounded-lg p-4 mb-4 card-shadow">
+            <h3 className="font-semibold text-dark mb-3">
+              <i className="fas fa-heartbeat mr-2 text-danger"></i>
+              健康状况
+            </h3>
+            
+            <div className="mb-3">
+              <p className="text-sm text-medium mb-1">问题判断</p>
+              <p className="font-medium text-dark">
+                <span className={`inline-block px-3 py-1 rounded-full text-sm ${result.status === '健康' ? 'bg-green-100 text-green-700' : 'bg-warning/20 text-warning'}`}>
+                  {result.status}
+                </span>
+              </p>
+            </div>
+            
+            {/* 处理建议 */}
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <p className="text-sm font-semibold text-secondary mb-2">
+                <i className="fas fa-lightbulb mr-1"></i>
+                处理建议
+              </p>
+              <p className="text-sm text-dark">{result.treatment_suggestion}</p>
+            </div>
+          </div>
+          
+          {/* 免责声明 */}
+          <div className="text-xs text-medium text-center bg-white p-3 rounded-lg card-shadow mb-4">
+            <p>免责声明：AI 建议仅供参考，不等同于专业医疗建议。</p>
+            <p>如有严重问题，请咨询专业园艺师。</p>
+          </div>
+          
+          {/* 操作按钮 */}
+          <div className="flex gap-3">
+            <button 
+              onClick={() => {
+                setShowResultPage(false);
+                setShowCapturePage(true);
+                setPreview(null);
+                setSelectedFile(null);
+                setResult(null);
+              }}
+              className="flex-1 bg-white text-primary border border-primary py-3 rounded-lg font-medium btn-shadow transition hover:bg-primary/5"
+            >
+              重新检测
+            </button>
+            <button 
+              onClick={() => {
+                setShowResultPage(false);
+                setPreview(null);
+                setSelectedFile(null);
+                setResult(null);
+              }}
+              className="flex-1 bg-primary text-white py-3 rounded-lg font-medium btn-shadow transition hover:bg-primary/90"
+            >
+              返回首页
+            </button>
+          </div>
+        </>
       )}
     </div>
   );
@@ -599,7 +668,9 @@ function App() {
     <div className="min-h-screen bg-gray-50 flex flex-col items-center">
       <div className="w-full max-w-md bg-white min-h-screen relative">
         {/* 页面内容 */}
-        {showCapturePage ? renderCapturePage() : (
+        {showAnalyzingPage ? renderAnalyzingPage() : 
+         showResultPage ? renderResultPage() :
+         showCapturePage ? renderCapturePage() : (
           <>
             {currentPage === 'detection' && renderDetectionPage()}
             {currentPage === 'shop' && renderShopPage()}
@@ -608,7 +679,7 @@ function App() {
         )}
 
         {/* 底部导航栏 */}
-        {!showCapturePage && (
+        {!showCapturePage && !showAnalyzingPage && !showResultPage && (
           <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white border-t border-gray-200 flex justify-around py-2 z-10">
           <button
             className={`flex flex-col items-center justify-center px-4 py-1 ${currentPage === 'detection' ? 'text-primary' : 'text-medium'}`}
