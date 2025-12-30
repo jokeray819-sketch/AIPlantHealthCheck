@@ -3,6 +3,7 @@ import axios from 'axios';
 
 // 常量定义
 const AI_ANALYSIS_DELAY = 1500; // AI分析页面显示时间（毫秒）
+const BASE_URL = 'http://192.168.11.252:8000';
 
 function App() {
   // 页面导航状态
@@ -41,7 +42,7 @@ function App() {
   // 获取当前用户信息
   const fetchCurrentUser = async (token) => {
     try {
-      const response = await axios.get('http://localhost:8000/users/me', {
+      const response = await axios.get(BASE_URL+'/users/me', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       setCurrentUser(response.data);
@@ -57,7 +58,7 @@ function App() {
     e.preventDefault();
     setLoading(true);
     try {
-      const response = await axios.post('http://localhost:8000/register', {
+      const response = await axios.post(BASE_URL+'/register', {
         username,
         email,
         password
@@ -77,7 +78,7 @@ function App() {
     e.preventDefault();
     setLoading(true);
     try {
-      const response = await axios.post('http://localhost:8000/login', {
+      const response = await axios.post(BASE_URL+'/login', {
         username,
         password
       });
@@ -130,7 +131,7 @@ function App() {
 
     setLoading(true);
     try {
-      const response = await axios.post('http://localhost:8000/predict', formData, {
+      const response = await axios.post(BASE_URL+'/predict', formData, {
         headers: { 
           'Content-Type': 'multipart/form-data',
           'Authorization': `Bearer ${token}`
