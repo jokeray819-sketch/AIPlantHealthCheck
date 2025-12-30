@@ -24,6 +24,7 @@ from auth import (
 
 # 常量定义
 FREE_USER_MONTHLY_LIMIT = 5  # 免费用户每月检测次数限制
+UNLIMITED_DETECTIONS = -1  # VIP用户无限检测次数（使用-1表示）
 
 # 创建数据库表
 Base.metadata.create_all(bind=engine)
@@ -142,7 +143,7 @@ async def get_membership_status(
     
     # 计算剩余检测次数
     if membership.is_vip:
-        remaining = -1  # -1 表示无限次（VIP用户）
+        remaining = UNLIMITED_DETECTIONS  # VIP用户无限检测
     else:
         remaining = max(0, FREE_USER_MONTHLY_LIMIT - membership.monthly_detections)
     
@@ -289,11 +290,8 @@ async def predict_plant_health(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    # 0. 检查用户会员状态和检测次数
-    # 获取或创建会员记录
+    # 检查用户会员状态和检测次数
     membership = get_or_create_membership(db, current_user.id)
-    
-    # 检查并重置月度检测次数
     membership = reset_monthly_detections_if_needed(db, membership)
     
     # 检查免费用户的检测次数限制
@@ -303,16 +301,16 @@ async def predict_plant_health(
             detail=f"本月检测次数已用完。免费用户每月最多可检测{FREE_USER_MONTHLY_LIMIT}次，请升级为VIP获得无限检测次数。"
         )
     
-    # 1. 验证文件类型
+    # 验证文件类型
     if file.content_type not in ["image/jpeg", "image/png"]:
         raise HTTPException(status_code=400, detail="只支持 JPG 或 PNG 图片格式")
 
     try:
-        # 2. 读取图片字节并转换为 PIL 对象
+        # 读取图片字节并转换为 PIL 对象
         image_data = await file.read()
         image = Image.open(io.BytesIO(image_data))
         
-        # 3. 调用 AI 模型
+        # 调用 AI 模型
         try:
             prediction = ai_inference(image)
         except Exception as api_error:
@@ -329,7 +327,7 @@ async def predict_plant_health(
                 "suggestion": str(prediction) if prediction else "无法获取诊断结果"
             }
         
-        # 4. 返回 JSON 结果
+        # 返回检测结果
         result = DetectionResult(
             plant_name=prediction.get("plant_name", "未知植物"),
             status=prediction.get("status", "无法识别"),
@@ -337,7 +335,7 @@ async def predict_plant_health(
             treatment_suggestion=prediction.get("suggestion", "无法获取建议")
         )
         
-        # 5. 增加检测次数（只在成功检测后增加）
+        # 增加检测次数（仅在成功检测后）
         membership.monthly_detections += 1
         db.commit()
         

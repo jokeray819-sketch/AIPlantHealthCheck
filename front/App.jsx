@@ -45,7 +45,7 @@ function App() {
   // 获取当前用户信息
   const fetchCurrentUser = async (token) => {
     try {
-      const response = await axios.get(BASE_URL+'/users/me', {
+      const response = await axios.get(`${BASE_URL}/users/me`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       setCurrentUser(response.data);
@@ -61,7 +61,7 @@ function App() {
   // 获取会员状态
   const fetchMembershipStatus = async (token) => {
     try {
-      const response = await axios.get(BASE_URL+'/membership/status', {
+      const response = await axios.get(`${BASE_URL}/membership/status`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       setMembershipStatus(response.data);
@@ -76,7 +76,7 @@ function App() {
     e.preventDefault();
     setLoading(true);
     try {
-      const response = await axios.post(BASE_URL+'/register', {
+      const response = await axios.post(`${BASE_URL}/register`, {
         username,
         email,
         password
@@ -96,7 +96,7 @@ function App() {
     e.preventDefault();
     setLoading(true);
     try {
-      const response = await axios.post(BASE_URL+'/login', {
+      const response = await axios.post(`${BASE_URL}/login`, {
         username,
         password
       });
@@ -150,7 +150,7 @@ function App() {
 
     setLoading(true);
     try {
-      const response = await axios.post(BASE_URL+'/predict', formData, {
+      const response = await axios.post(`${BASE_URL}/predict`, formData, {
         headers: { 
           'Content-Type': 'multipart/form-data',
           'Authorization': `Bearer ${token}`
