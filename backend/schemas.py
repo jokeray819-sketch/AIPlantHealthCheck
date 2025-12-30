@@ -38,3 +38,12 @@ class DetectionResult(BaseModel):
     status: str
     confidence: float
     treatment_suggestion: str
+
+# 会员状态响应
+class MembershipResponse(BaseModel):
+    is_vip: bool
+    monthly_detections: int
+    remaining_detections: int  # Remaining detections this month
+    
+    class Config:
+        from_attributes = True

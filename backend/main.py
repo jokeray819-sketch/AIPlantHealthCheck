@@ -12,8 +12,8 @@ import re
 from volcenginesdkarkruntime import Ark
 
 from database import engine, get_db, Base
-from models import User
-from schemas import UserRegister, UserLogin, Token, UserResponse, DetectionResult
+from models import User, Membership
+from schemas import UserRegister, UserLogin, Token, UserResponse, DetectionResult, MembershipResponse
 from auth import (
     get_password_hash,
     authenticate_user,
@@ -61,6 +61,16 @@ def register(user: UserRegister, db: Session = Depends(get_db)):
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
+    
+    # 创建默认免费会员
+    new_membership = Membership(
+        user_id=new_user.id,
+        is_vip=False,
+        monthly_detections=0
+    )
+    db.add(new_membership)
+    db.commit()
+    
     return new_user
 
 @app.post("/login", response_model=Token)
@@ -85,6 +95,47 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
 async def read_users_me(current_user: User = Depends(get_current_user)):
     """获取当前登录用户信息"""
     return current_user
+
+@app.get("/membership/status", response_model=MembershipResponse)
+async def get_membership_status(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """获取用户会员状态和剩余检测次数"""
+    membership = db.query(Membership).filter(Membership.user_id == current_user.id).first()
+    
+    if not membership:
+        # 如果没有会员记录，创建一个默认的免费会员
+        membership = Membership(
+            user_id=current_user.id,
+            is_vip=False,
+            monthly_detections=0
+        )
+        db.add(membership)
+        db.commit()
+        db.refresh(membership)
+    
+    # 检查是否需要重置月度检测次数
+    from datetime import date
+    today = date.today()
+    if membership.last_reset_date.month != today.month or membership.last_reset_date.year != today.year:
+        membership.monthly_detections = 0
+        membership.last_reset_date = today
+        db.commit()
+        db.refresh(membership)
+    
+    # 计算剩余检测次数
+    FREE_USER_MONTHLY_LIMIT = 5
+    if membership.is_vip:
+        remaining = -1  # -1 表示无限次
+    else:
+        remaining = max(0, FREE_USER_MONTHLY_LIMIT - membership.monthly_detections)
+    
+    return MembershipResponse(
+        is_vip=membership.is_vip,
+        monthly_detections=membership.monthly_detections,
+        remaining_detections=remaining
+    )
 
 # ==================== 植物健康检测相关路由 ====================
 
@@ -220,8 +271,40 @@ def mock_ai_inference(image: Image.Image):
 @app.post("/predict", response_model=DetectionResult)
 async def predict_plant_health(
     file: UploadFile = File(...),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
+    # 0. 检查用户会员状态和检测次数
+    membership = db.query(Membership).filter(Membership.user_id == current_user.id).first()
+    
+    if not membership:
+        # 如果没有会员记录，创建一个默认的免费会员
+        membership = Membership(
+            user_id=current_user.id,
+            is_vip=False,
+            monthly_detections=0
+        )
+        db.add(membership)
+        db.commit()
+        db.refresh(membership)
+    
+    # 检查是否需要重置月度检测次数
+    from datetime import date
+    today = date.today()
+    if membership.last_reset_date.month != today.month or membership.last_reset_date.year != today.year:
+        membership.monthly_detections = 0
+        membership.last_reset_date = today
+        db.commit()
+        db.refresh(membership)
+    
+    # 检查免费用户的检测次数限制
+    FREE_USER_MONTHLY_LIMIT = 5
+    if not membership.is_vip and membership.monthly_detections >= FREE_USER_MONTHLY_LIMIT:
+        raise HTTPException(
+            status_code=403, 
+            detail=f"本月检测次数已用完。免费用户每月最多可检测{FREE_USER_MONTHLY_LIMIT}次，请升级为VIP获得无限检测次数。"
+        )
+    
     # 1. 验证文件类型
     if file.content_type not in ["image/jpeg", "image/png"]:
         raise HTTPException(status_code=400, detail="只支持 JPG 或 PNG 图片格式")
@@ -249,12 +332,18 @@ async def predict_plant_health(
             }
         
         # 4. 返回 JSON 结果
-        return DetectionResult(
+        result = DetectionResult(
             plant_name=prediction.get("plant_name", "未知植物"),
             status=prediction.get("status", "无法识别"),
             confidence=round(random.uniform(0.85, 0.99), 2),
             treatment_suggestion=prediction.get("suggestion", "无法获取建议")
         )
+        
+        # 5. 增加检测次数（只在成功检测后增加）
+        membership.monthly_detections += 1
+        db.commit()
+        
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"识别失败: {str(e)}")
 
