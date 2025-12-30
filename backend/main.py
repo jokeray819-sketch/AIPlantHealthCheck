@@ -2,7 +2,7 @@ from fastapi import FastAPI, File, UploadFile, HTTPException, Depends
 from PIL import Image
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from datetime import timedelta
+from datetime import timedelta, date
 import io
 import random
 import os
@@ -22,6 +22,9 @@ from auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES
 )
 
+# 常量定义
+FREE_USER_MONTHLY_LIMIT = 5  # 免费用户每月检测次数限制
+
 # 创建数据库表
 Base.metadata.create_all(bind=engine)
 
@@ -35,6 +38,35 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ==================== 辅助函数 ====================
+
+def get_or_create_membership(db: Session, user_id: int) -> Membership:
+    """获取或创建用户会员记录"""
+    membership = db.query(Membership).filter(Membership.user_id == user_id).first()
+    
+    if not membership:
+        # 如果没有会员记录，创建一个默认的免费会员
+        membership = Membership(
+            user_id=user_id,
+            is_vip=False,
+            monthly_detections=0
+        )
+        db.add(membership)
+        db.commit()
+        db.refresh(membership)
+    
+    return membership
+
+def reset_monthly_detections_if_needed(db: Session, membership: Membership) -> Membership:
+    """检查并在需要时重置月度检测次数"""
+    today = date.today()
+    if membership.last_reset_date.month != today.month or membership.last_reset_date.year != today.year:
+        membership.monthly_detections = 0
+        membership.last_reset_date = today
+        db.commit()
+        db.refresh(membership)
+    return membership
 
 # ==================== 用户认证相关路由 ====================
 
@@ -102,32 +134,15 @@ async def get_membership_status(
     db: Session = Depends(get_db)
 ):
     """获取用户会员状态和剩余检测次数"""
-    membership = db.query(Membership).filter(Membership.user_id == current_user.id).first()
+    # 获取或创建会员记录
+    membership = get_or_create_membership(db, current_user.id)
     
-    if not membership:
-        # 如果没有会员记录，创建一个默认的免费会员
-        membership = Membership(
-            user_id=current_user.id,
-            is_vip=False,
-            monthly_detections=0
-        )
-        db.add(membership)
-        db.commit()
-        db.refresh(membership)
-    
-    # 检查是否需要重置月度检测次数
-    from datetime import date
-    today = date.today()
-    if membership.last_reset_date.month != today.month or membership.last_reset_date.year != today.year:
-        membership.monthly_detections = 0
-        membership.last_reset_date = today
-        db.commit()
-        db.refresh(membership)
+    # 检查并重置月度检测次数
+    membership = reset_monthly_detections_if_needed(db, membership)
     
     # 计算剩余检测次数
-    FREE_USER_MONTHLY_LIMIT = 5
     if membership.is_vip:
-        remaining = -1  # -1 表示无限次
+        remaining = -1  # -1 表示无限次（VIP用户）
     else:
         remaining = max(0, FREE_USER_MONTHLY_LIMIT - membership.monthly_detections)
     
@@ -275,30 +290,13 @@ async def predict_plant_health(
     db: Session = Depends(get_db)
 ):
     # 0. 检查用户会员状态和检测次数
-    membership = db.query(Membership).filter(Membership.user_id == current_user.id).first()
+    # 获取或创建会员记录
+    membership = get_or_create_membership(db, current_user.id)
     
-    if not membership:
-        # 如果没有会员记录，创建一个默认的免费会员
-        membership = Membership(
-            user_id=current_user.id,
-            is_vip=False,
-            monthly_detections=0
-        )
-        db.add(membership)
-        db.commit()
-        db.refresh(membership)
-    
-    # 检查是否需要重置月度检测次数
-    from datetime import date
-    today = date.today()
-    if membership.last_reset_date.month != today.month or membership.last_reset_date.year != today.year:
-        membership.monthly_detections = 0
-        membership.last_reset_date = today
-        db.commit()
-        db.refresh(membership)
+    # 检查并重置月度检测次数
+    membership = reset_monthly_detections_if_needed(db, membership)
     
     # 检查免费用户的检测次数限制
-    FREE_USER_MONTHLY_LIMIT = 5
     if not membership.is_vip and membership.monthly_detections >= FREE_USER_MONTHLY_LIMIT:
         raise HTTPException(
             status_code=403, 

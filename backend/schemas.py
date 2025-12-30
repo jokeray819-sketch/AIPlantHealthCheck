@@ -43,7 +43,7 @@ class DetectionResult(BaseModel):
 class MembershipResponse(BaseModel):
     is_vip: bool
     monthly_detections: int
-    remaining_detections: int  # Remaining detections this month
+    remaining_detections: int  # 剩余检测次数。对于VIP用户为-1表示无限制
     
     class Config:
         from_attributes = True
