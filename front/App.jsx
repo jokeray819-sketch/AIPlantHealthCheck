@@ -447,7 +447,7 @@ function App() {
                 处理建议
               </p>
               <ol className="text-sm text-dark space-y-1">
-                {result.handling_suggestions.map((suggestion, index) => (
+                {(result.handling_suggestions || []).map((suggestion, index) => (
                   <li key={index} className="flex">
                     <span className="mr-2">{index + 1}.</span>
                     <span>{suggestion}</span>

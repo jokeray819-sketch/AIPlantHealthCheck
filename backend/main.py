@@ -25,6 +25,7 @@ from auth import (
 # 常量定义
 FREE_USER_MONTHLY_LIMIT = 5  # 免费用户每月检测次数限制
 UNLIMITED_DETECTIONS = -1  # VIP用户无限检测次数（使用-1表示）
+DEFAULT_SEVERITY_VALUE = 30  # 默认严重程度值
 HOST = os.getenv("HOST", "0.0.0.0")
 
 # 创建数据库表
@@ -259,7 +260,7 @@ def ai_inference(image: Image.Image):
             "status": "无法识别",
             "problem_judgment": content if content else "无法获取诊断结果，请重试。",
             "severity": "轻度",
-            "severityValue": 30,
+            "severityValue": DEFAULT_SEVERITY_VALUE,
             "handling_suggestions": ["请重新拍摄清晰的植物照片", "确保光线充足", "尽量拍摄叶片细节"],
             "need_product": False,
             "plant_introduction": "暂无植物信息"
@@ -411,7 +412,7 @@ async def predict_plant_health(
                 "status": "无法识别",
                 "problem_judgment": "无法识别植物健康状态",
                 "severity": "轻度",
-                "severityValue": 30,
+                "severityValue": DEFAULT_SEVERITY_VALUE,
                 "handling_suggestions": ["请重新拍摄清晰的植物照片", "确保光线充足", "尽量拍摄叶片细节"],
                 "need_product": False,
                 "plant_introduction": str(prediction) if prediction else "无法获取植物信息"
@@ -424,7 +425,7 @@ async def predict_plant_health(
             status=prediction.get("status", "无法识别"),
             problem_judgment=prediction.get("problem_judgment", "无法识别问题"),
             severity=prediction.get("severity", "轻度"),
-            severityValue=prediction.get("severityValue", 30),
+            severityValue=prediction.get("severityValue", DEFAULT_SEVERITY_VALUE),
             handling_suggestions=prediction.get("handling_suggestions", ["请重新检测"]),
             need_product=prediction.get("need_product", False),
             plant_introduction=prediction.get("plant_introduction", "无植物信息")
