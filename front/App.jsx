@@ -402,12 +402,9 @@ function App() {
           
           {/* 植物信息 */}
           <div className="bg-white rounded-lg p-4 mb-4 card-shadow">
-            <div className="flex justify-between items-center mb-2">
-              <h3 className="text-lg font-bold text-dark">{result.plant_name}</h3>
-              <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                置信度: {(result.confidence * 100).toFixed(1)}%
-              </span>
-            </div>
+            <h3 className="text-lg font-bold text-dark mb-1">{result.plant_name}</h3>
+            <p className="text-sm text-medium italic mb-2">{result.scientific_name}</p>
+            <p className="text-sm text-dark">{result.plant_introduction}</p>
           </div>
           
           {/* 健康状况 */}
@@ -419,11 +416,28 @@ function App() {
             
             <div className="mb-3">
               <p className="text-sm text-medium mb-1">问题判断</p>
-              <p className="font-medium text-dark">
-                <span className={`inline-block px-3 py-1 rounded-full text-sm ${result.status === '健康' ? 'bg-green-100 text-green-700' : 'bg-warning/20 text-warning'}`}>
-                  {result.status}
-                </span>
-              </p>
+              <p className="text-sm text-dark mb-2">{result.problem_judgment}</p>
+              <span className={`inline-block px-3 py-1 rounded-full text-sm ${result.status === '健康' ? 'bg-green-100 text-green-700' : 'bg-warning/20 text-warning'}`}>
+                {result.status}
+              </span>
+            </div>
+            
+            {/* 严重程度 */}
+            <div className="mb-3">
+              <div className="flex justify-between items-center mb-1">
+                <p className="text-sm text-medium">严重程度</p>
+                <p className="text-sm font-medium text-dark">{result.severity}</p>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div 
+                  className={`h-2 rounded-full ${
+                    result.severityValue <= 30 ? 'bg-green-500' : 
+                    result.severityValue <= 50 ? 'bg-yellow-500' : 
+                    result.severityValue <= 80 ? 'bg-orange-500' : 'bg-red-500'
+                  }`}
+                  style={{ width: `${result.severityValue}%` }}
+                ></div>
+              </div>
             </div>
             
             {/* 处理建议 */}
@@ -432,7 +446,14 @@ function App() {
                 <i className="fas fa-lightbulb mr-1"></i>
                 处理建议
               </p>
-              <p className="text-sm text-dark">{result.treatment_suggestion}</p>
+              <ol className="text-sm text-dark space-y-1">
+                {result.handling_suggestions.map((suggestion, index) => (
+                  <li key={index} className="flex">
+                    <span className="mr-2">{index + 1}.</span>
+                    <span>{suggestion}</span>
+                  </li>
+                ))}
+              </ol>
             </div>
           </div>
           
@@ -443,31 +464,42 @@ function App() {
           </div>
           
           {/* 操作按钮 */}
-          <div className="flex gap-3">
+          <div className="flex gap-3 mb-3">
             <button 
               onClick={() => {
-                setShowResultPage(false);
-                setShowCapturePage(true);
-                setPreview(null);
-                setSelectedFile(null);
-                setResult(null);
+                alert('保存功能开发中...');
               }}
               className="flex-1 bg-white text-primary border border-primary py-3 rounded-lg font-medium btn-shadow transition hover:bg-primary/5"
             >
-              重新检测
+              <i className="fas fa-bookmark mr-2"></i>
+              保存我的植物
             </button>
-            <button 
-              onClick={() => {
-                setShowResultPage(false);
-                setPreview(null);
-                setSelectedFile(null);
-                setResult(null);
-              }}
-              className="flex-1 bg-primary text-white py-3 rounded-lg font-medium btn-shadow transition hover:bg-primary/90"
-            >
-              返回首页
-            </button>
+            {result.need_product && (
+              <button 
+                onClick={() => {
+                  setShowResultPage(false);
+                  setCurrentPage('shop');
+                }}
+                className="flex-1 bg-primary text-white py-3 rounded-lg font-medium btn-shadow transition hover:bg-primary/90"
+              >
+                <i className="fas fa-shopping-cart mr-2"></i>
+                查看推荐产品
+              </button>
+            )}
           </div>
+          
+          <button 
+            onClick={() => {
+              setShowResultPage(false);
+              setShowCapturePage(true);
+              setPreview(null);
+              setSelectedFile(null);
+              setResult(null);
+            }}
+            className="w-full bg-gray-100 text-dark py-3 rounded-lg font-medium transition hover:bg-gray-200"
+          >
+            重新检测
+          </button>
         </>
       )}
     </div>

@@ -255,44 +255,115 @@ def ai_inference(image: Image.Image):
         print("警告: 无法解析 JSON，使用默认值")
         return {
             "plant_name": "未知植物",
+            "scientific_name": "Unknown",
             "status": "无法识别",
-            "suggestion": content if content else "无法获取诊断结果，请重试。"
+            "problem_judgment": content if content else "无法获取诊断结果，请重试。",
+            "severity": "轻度",
+            "severityValue": 30,
+            "handling_suggestions": ["请重新拍摄清晰的植物照片", "确保光线充足", "尽量拍摄叶片细节"],
+            "need_product": False,
+            "plant_introduction": "暂无植物信息"
         }
 
 # 模拟 AI 推理过程 (实际开发时这里替换为你的 PyTorch/TensorFlow 模型)
 def mock_ai_inference(image: Image.Image):
-    # 这里通常会有模型预测逻辑: model.predict(image)
-    # 根据设计文件中的三种测试结果，返回不同的诊断结果
+    # 根据新的响应格式返回模拟结果
     results = [
         # 结果1: 健康植物
         {
-            "plant_name": "绿萝", 
-            "status": "健康", 
-            "suggestion": "您的植物状态良好！继续保持当前的养护方式，定期浇水，保持适当光照。建议每2-3天浇水一次，避免积水。"
+            "plant_name": "绿萝",
+            "scientific_name": "Epipremnum aureum",
+            "status": "健康",
+            "problem_judgment": "植株长势良好，叶片翠绿无异常",
+            "severity": "轻度",
+            "severityValue": 30,
+            "handling_suggestions": [
+                "施加适量的液体肥料",
+                "每月施肥一次，遵循薄肥勤施原则",
+                "增加光照时间，促进光合作用"
+            ],
+            "need_product": False,
+            "plant_introduction": "常见室内观叶植物，喜温暖湿润环境，耐阴性强。"
         },
-        # 结果2: 早疫病
+        # 结果2: 缺水
         {
-            "plant_name": "番茄", 
-            "status": "早疫病", 
-            "suggestion": "检测到早疫病症状。建议立即采取以下措施：1) 移除并销毁受感染的叶片；2) 使用波尔多液或代森锰锌进行喷洒；3) 改善通风条件；4) 减少叶面喷水。"
+            "plant_name": "发财树",
+            "scientific_name": "Pachira aquatica",
+            "status": "缺水",
+            "problem_judgment": "叶片下垂萎蔫，土壤干燥板结",
+            "severity": "中度",
+            "severityValue": 50,
+            "handling_suggestions": [
+                "立即浇透水，直至盆底有水流出",
+                "放置在通风处，避免积水",
+                "后续保持土壤微湿，不干不浇"
+            ],
+            "need_product": False,
+            "plant_introduction": "热带观叶植物，耐旱性较强，喜温暖湿润环境。"
         },
-        # 结果3: 黑斑病
+        # 结果3: 虫害
         {
-            "plant_name": "月季", 
-            "status": "黑斑病", 
-            "suggestion": "检测到黑斑病。处理方案：1) 及时清理落叶和病叶；2) 使用杀菌剂（如多菌灵）每7-10天喷洒一次；3) 保持良好通风；4) 避免晚间浇水，减少叶面湿度。"
+            "plant_name": "月季",
+            "scientific_name": "Rosa chinensis",
+            "status": "虫害",
+            "problem_judgment": "叶片背面出现蚜虫，伴随叶片卷曲发黄",
+            "severity": "中度",
+            "severityValue": 50,
+            "handling_suggestions": [
+                "用清水冲洗叶片背面虫体",
+                "喷施专用杀虫剂",
+                "放置通风处减少虫害复发"
+            ],
+            "need_product": True,
+            "plant_introduction": "常见观赏花卉，花期长，喜阳光充足环境。"
         },
-        # 结果4: 缺肥症状
+        # 结果4: 缺肥
         {
-            "plant_name": "吊兰", 
-            "status": "缺肥", 
-            "suggestion": "植物显示缺肥症状。建议：1) 使用均衡型液态肥料，每2周施肥一次；2) 注意氮磷钾比例为20-20-20；3) 施肥后充分浇水；4) 避免过度施肥导致肥害。"
+            "plant_name": "吊兰",
+            "scientific_name": "Chlorophytum comosum",
+            "status": "缺肥",
+            "problem_judgment": "叶片发黄，生长缓慢，缺乏光泽",
+            "severity": "轻度",
+            "severityValue": 30,
+            "handling_suggestions": [
+                "使用均衡型液态肥料，每2周施肥一次",
+                "注意氮磷钾比例为20-20-20",
+                "施肥后充分浇水，避免烧根"
+            ],
+            "need_product": True,
+            "plant_introduction": "多年生常绿草本植物，适应性强，易养护。"
         },
-        # 结果5: 虫害
+        # 结果5: 光照不当
         {
-            "plant_name": "玫瑰", 
-            "status": "虫害", 
-            "suggestion": "检测到虫害。处理建议：1) 使用杀虫剂（如吡虫啉）喷洒叶片正反面；2) 对于少量害虫可手工清除；3) 保持环境清洁；4) 定期检查植物，早发现早治疗。"
+            "plant_name": "海芋",
+            "scientific_name": "Alocasia amazonica",
+            "status": "光照不当",
+            "problem_judgment": "叶片出现灼伤斑点，颜色变褐",
+            "severity": "轻度",
+            "severityValue": 30,
+            "handling_suggestions": [
+                "将植物移至散射光充足的位置",
+                "避免阳光直射，特别是夏季中午",
+                "定期旋转花盆，使植物均匀受光"
+            ],
+            "need_product": False,
+            "plant_introduction": "热带观叶植物，叶片宽大，喜高温多湿环境。"
+        },
+        # 结果6: 病害
+        {
+            "plant_name": "龟背竹",
+            "scientific_name": "Monstera deliciosa",
+            "status": "病害",
+            "problem_judgment": "叶片出现褐色斑点，边缘枯黄",
+            "severity": "中度",
+            "severityValue": 50,
+            "handling_suggestions": [
+                "及时清理病叶，避免病菌扩散",
+                "使用杀菌剂喷洒叶片正反面",
+                "改善通风条件，减少湿度"
+            ],
+            "need_product": True,
+            "plant_introduction": "大型观叶植物，叶片独特，适合室内摆放。"
         }
     ]
     return random.choice(results)
@@ -336,16 +407,27 @@ async def predict_plant_health(
             print(f"警告: prediction 不是字典格式: {type(prediction)}")
             prediction = {
                 "plant_name": "未知植物",
+                "scientific_name": "Unknown",
                 "status": "无法识别",
-                "suggestion": str(prediction) if prediction else "无法获取诊断结果"
+                "problem_judgment": "无法识别植物健康状态",
+                "severity": "轻度",
+                "severityValue": 30,
+                "handling_suggestions": ["请重新拍摄清晰的植物照片", "确保光线充足", "尽量拍摄叶片细节"],
+                "need_product": False,
+                "plant_introduction": str(prediction) if prediction else "无法获取植物信息"
             }
         
         # 返回检测结果
         result = DetectionResult(
             plant_name=prediction.get("plant_name", "未知植物"),
+            scientific_name=prediction.get("scientific_name", "Unknown"),
             status=prediction.get("status", "无法识别"),
-            confidence=round(random.uniform(0.85, 0.99), 2),
-            treatment_suggestion=prediction.get("suggestion", "无法获取建议")
+            problem_judgment=prediction.get("problem_judgment", "无法识别问题"),
+            severity=prediction.get("severity", "轻度"),
+            severityValue=prediction.get("severityValue", 30),
+            handling_suggestions=prediction.get("handling_suggestions", ["请重新检测"]),
+            need_product=prediction.get("need_product", False),
+            plant_introduction=prediction.get("plant_introduction", "无植物信息")
         )
         
         # 增加检测次数（仅在成功检测后）

@@ -32,12 +32,17 @@ class UserResponse(BaseModel):
     class Config:
         from_attributes = True
 
-# 检测结果（保留原有的）
+# 检测结果
 class DetectionResult(BaseModel):
-    plant_name: str
-    status: str
-    confidence: float
-    treatment_suggestion: str
+    plant_name: str  # 植物名称
+    scientific_name: str  # 学名
+    status: str  # 健康状态
+    problem_judgment: str  # 问题判断
+    severity: str  # 严重程度中文
+    severityValue: int  # 严重程度进度条值
+    handling_suggestions: list[str]  # 处理建议（数组）
+    need_product: bool  # 是否需要产品
+    plant_introduction: str  # 植物简介
 
 # 会员状态响应
 class MembershipResponse(BaseModel):
