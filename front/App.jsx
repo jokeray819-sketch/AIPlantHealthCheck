@@ -474,18 +474,16 @@ function App() {
               <i className="fas fa-bookmark mr-2"></i>
               保存我的植物
             </button>
-            {result.need_product && (
-              <button 
-                onClick={() => {
-                  setShowResultPage(false);
-                  setCurrentPage('shop');
-                }}
-                className="flex-1 bg-primary text-white py-3 rounded-lg font-medium btn-shadow transition hover:bg-primary/90"
-              >
-                <i className="fas fa-shopping-cart mr-2"></i>
-                查看推荐产品
-              </button>
-            )}
+            <button 
+              onClick={() => {
+                setShowResultPage(false);
+                setCurrentPage('shop');
+              }}
+              className="flex-1 bg-primary text-white py-3 rounded-lg font-medium btn-shadow transition hover:bg-primary/90"
+            >
+              <i className="fas fa-shopping-cart mr-2"></i>
+              查看推荐产品
+            </button>
           </div>
           
           <button 
