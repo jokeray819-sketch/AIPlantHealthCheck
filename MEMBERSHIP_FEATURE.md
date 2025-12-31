@@ -137,6 +137,46 @@ Content-Type: application/json
 
 ## 测试指南
 
+### 前提条件
+1. 安装MetaMask浏览器插件
+2. 创建或导入测试钱包
+3. 切换到测试网络（如Sepolia或Goerli）
+4. 获取测试ETH（从测试网faucet）
+
+### 后端测试
+```bash
+# 启动后端服务
+cd backend
+python main.py
+
+# 测试会员状态接口
+curl -X GET http://localhost:8000/membership/status \
+  -H "Authorization: Bearer <your_token>"
+
+# 测试会员购买接口
+curl -X POST http://localhost:8000/membership/purchase \
+  -H "Authorization: Bearer <your_token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "transaction_hash": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+    "wallet_address": "0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
+    "plan": "monthly"
+  }'
+```
+
+### 前端测试
+```bash
+# 启动前端服务
+cd front
+npm run dev
+
+# 访问 http://localhost:3000
+# 1. 注册/登录账号
+# 2. 进入"我的"页面
+# 3. 点击"立即开通会员"
+# 4. 选择套餐并完成支付流程
+```
+
 ### 测试钱包支付
 1. 安装MetaMask浏览器插件
 2. 创建或导入测试钱包
