@@ -44,11 +44,15 @@
 
 5. `problem_judgment`：一句话结论，符合问题分类
 
-6. `severity`：仅限 **轻度/中度/重度**
+6. `severity`：仅限 **轻度/中度/高度/重度**
 
-7. `handling_suggestions`：步骤必须为3条，用`\n`分隔步骤
+7. `severityValue`: 仅限 **1/2/3/4**，分别对应轻度/中度/高度/重度
 
-8. `need_product`：仅限 **是/否**
+8. `handling_suggestions`：[类型：字符串数组]，步骤必须为3条，用`\n`分隔步骤
+
+9. `need_product`：仅限 **true/false**
+
+10. `plant_introduction`: 植物简介，例如：多年生草本植物，花形奇特，似仙鹤独立，喜阳光充足环境。
 
 ## 五、 输出示例
 
@@ -61,8 +65,13 @@
     "status": "光照不当",
     "problem_judgment": "叶片出现灼伤斑点，颜色变褐",
     "severity": "轻度",
-    "handling_suggestions": "1.将植物移至散射光充足的位置\n2.避免阳光直射，特别是夏季中午\n3.定期旋转花盆，使植物均匀受光",
-    "need_product": "否"
+    "handling_suggestions": [
+      "将植物移至散射光充足的位置",
+      "避免阳光直射，特别是夏季中午",
+      "定期旋转花盆，使植物均匀受光"
+    ],
+    "need_product": "false",
+    "plant_introduction": "热带观叶植物，叶片宽大，喜高温多湿环境。"
 }
 ```
 
@@ -75,8 +84,13 @@
     "status": "健康",
     "problem_judgment": "植株长势良好，叶片翠绿无异常",
     "severity": "轻度",
-    "handling_suggestions": "1. 施加适量的液体肥料;\n2.每月施肥一次，遵循薄肥勤施原则;\n3.增加光照时间，促进光合作用\n",
-    "need_product": "否"
+    "handling_suggestions": [
+      "施加适量的液体肥料",
+      "每月施肥一次，遵循薄肥勤施原则",
+      "增加光照时间，促进光合作用"
+    ],
+    "need_product": false,
+  "plant_introduction": "多年生草本植物，花形奇特，似仙鹤独立，喜阳光充足环境。"
 }
 ```
 
@@ -89,8 +103,13 @@
     "status": "虫害",
     "problem_judgment": "叶片背面出现蚜虫，伴随叶片卷曲发黄",
     "severity": "中度",
-    "handling_suggestions": "1. 用清水冲洗叶片背面虫体\n2. 喷施专用杀虫剂\n3. 放置通风处减少虫害复发",
-    "need_product": "是"
+    "handling_suggestions": [
+      "用清水冲洗叶片背面虫体",
+      "喷施专用杀虫剂",
+      "放置通风处减少虫害复发"
+    ],
+    "need_product": true,
+  "plant_introduction": "常见室内观叶植物，喜温暖湿润环境，耐阴性强。"
 }
 ```
 
