@@ -48,3 +48,4 @@ yarn-error.log*
 # Build outputs
 dist/
 build/
+.vite/
