@@ -30,6 +30,11 @@ function App() {
   
   // 会员相关状态
   const [membershipStatus, setMembershipStatus] = useState(null);
+  const [showMembershipModal, setShowMembershipModal] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState('monthly');
+  const [walletConnected, setWalletConnected] = useState(false);
+  const [walletAddress, setWalletAddress] = useState('');
+  const [purchaseLoading, setPurchaseLoading] = useState(false);
 
   // Refs for file inputs
   const fileInputRef = useRef(null);
@@ -124,6 +129,95 @@ function App() {
     setResult(null);
     setPreview(null);
     setSelectedFile(null);
+  };
+
+  // 连接钱包
+  const connectWallet = async () => {
+    if (typeof window.ethereum !== 'undefined') {
+      try {
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        setWalletAddress(accounts[0]);
+        setWalletConnected(true);
+        return accounts[0];
+      } catch (error) {
+        console.error('连接钱包失败:', error);
+        alert('连接钱包失败，请确保已安装MetaMask并已解锁');
+        return null;
+      }
+    } else {
+      alert('请先安装MetaMask钱包插件！');
+      return null;
+    }
+  };
+
+  // 购买会员
+  const handlePurchaseMembership = async () => {
+    if (!isAuthenticated) {
+      alert('请先登录');
+      setShowMembershipModal(false);
+      setShowAuthModal(true);
+      return;
+    }
+
+    setPurchaseLoading(true);
+    try {
+      // 如果钱包未连接，先连接
+      let address = walletAddress;
+      if (!walletConnected) {
+        address = await connectWallet();
+        if (!address) {
+          setPurchaseLoading(false);
+          return;
+        }
+      }
+
+      // 获取价格（根据套餐）
+      const prices = {
+        monthly: '0.001',
+        quarterly: '0.0025',
+        yearly: '0.008'
+      };
+
+      // 发送交易
+      const transactionParameters = {
+        to: '0x742d35Cc6634C0532925a3b844Bc454e4438f44e', // 收款地址（示例地址）
+        from: address,
+        value: (parseFloat(prices[selectedPlan]) * 1e18).toString(16), // 转换为Wei并转十六进制
+      };
+
+      const txHash = await window.ethereum.request({
+        method: 'eth_sendTransaction',
+        params: [transactionParameters],
+      });
+
+      console.log('交易哈希:', txHash);
+
+      // 调用后端API确认购买
+      const token = localStorage.getItem('token');
+      const response = await axios.post(`${BASE_URL}/membership/purchase`, {
+        transaction_hash: txHash,
+        wallet_address: address,
+        plan: selectedPlan
+      }, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.data.success) {
+        alert(response.data.message);
+        // 刷新会员状态
+        await fetchMembershipStatus(token);
+        setShowMembershipModal(false);
+      }
+    } catch (error) {
+      console.error('购买失败:', error);
+      if (error.code === 4001) {
+        alert('您取消了交易');
+      } else {
+        alert(error.response?.data?.detail || '购买失败，请重试');
+      }
+    } finally {
+      setPurchaseLoading(false);
+    }
   };
 
   // 处理文件选择
@@ -689,7 +783,10 @@ function App() {
             </span>
           </p>
           {!membershipStatus?.is_vip && (
-            <button className="w-full bg-white text-primary font-medium py-2 rounded-lg btn-shadow transition hover:bg-white/90">
+            <button 
+              onClick={() => setShowMembershipModal(true)}
+              className="w-full bg-white text-primary font-medium py-2 rounded-lg btn-shadow transition hover:bg-white/90"
+            >
               立即开通会员
             </button>
           )}
@@ -881,6 +978,123 @@ function App() {
                   </button>
                 </form>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* 会员购买模态框 */}
+        {showMembershipModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowMembershipModal(false)}>
+            <div className="bg-white rounded-lg w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-2xl font-bold text-dark">开通会员</h3>
+                <button onClick={() => setShowMembershipModal(false)} className="text-medium" aria-label="关闭">
+                  <i className="fas fa-times"></i>
+                </button>
+              </div>
+
+              {/* 会员权益 */}
+              <div className="bg-gradient-to-r from-primary to-secondary rounded-lg p-4 mb-6 text-white">
+                <h4 className="font-bold text-lg mb-3">会员专属权益</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    <i className="fas fa-check-circle"></i>
+                    <span>无限次植物健康检测</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <i className="fas fa-check-circle"></i>
+                    <span>优先使用最新AI模型</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <i className="fas fa-check-circle"></i>
+                    <span>专属会员标识</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <i className="fas fa-check-circle"></i>
+                    <span>7x24小时优先客服支持</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 套餐选择 */}
+              <div className="mb-6">
+                <h4 className="font-semibold text-dark mb-3">选择套餐</h4>
+                <div className="space-y-3">
+                  <div 
+                    onClick={() => setSelectedPlan('monthly')}
+                    className={`border-2 rounded-lg p-4 cursor-pointer transition ${selectedPlan === 'monthly' ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-primary/50'}`}
+                  >
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <h5 className="font-semibold text-dark">月度会员</h5>
+                        <p className="text-sm text-medium">30天无限检测</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-2xl font-bold text-primary">0.001 ETH</p>
+                        <p className="text-xs text-medium">约 $3.00</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div 
+                    onClick={() => setSelectedPlan('quarterly')}
+                    className={`border-2 rounded-lg p-4 cursor-pointer transition relative ${selectedPlan === 'quarterly' ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-primary/50'}`}
+                  >
+                    <span className="absolute top-2 right-2 bg-warning text-white text-xs px-2 py-0.5 rounded-full">省17%</span>
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <h5 className="font-semibold text-dark">季度会员</h5>
+                        <p className="text-sm text-medium">90天无限检测</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-2xl font-bold text-primary">0.0025 ETH</p>
+                        <p className="text-xs text-medium line-through">0.003 ETH</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div 
+                    onClick={() => setSelectedPlan('yearly')}
+                    className={`border-2 rounded-lg p-4 cursor-pointer transition relative ${selectedPlan === 'yearly' ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-primary/50'}`}
+                  >
+                    <span className="absolute top-2 right-2 bg-danger text-white text-xs px-2 py-0.5 rounded-full">省33%</span>
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <h5 className="font-semibold text-dark">年度会员</h5>
+                        <p className="text-sm text-medium">365天无限检测</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-2xl font-bold text-primary">0.008 ETH</p>
+                        <p className="text-xs text-medium line-through">0.012 ETH</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 钱包连接状态 */}
+              {walletConnected && (
+                <div className="mb-4 p-3 bg-green-50 text-green-700 rounded-lg text-sm flex items-center gap-2">
+                  <i className="fas fa-wallet"></i>
+                  <span>钱包已连接: {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}</span>
+                </div>
+              )}
+
+              {/* 支付按钮 */}
+              <button
+                onClick={handlePurchaseMembership}
+                disabled={purchaseLoading}
+                className={`w-full py-3 rounded-lg font-medium text-white btn-shadow transition flex items-center justify-center gap-2 ${purchaseLoading ? 'bg-gray-400' : 'bg-primary hover:bg-primary/90'}`}
+              >
+                <i className="fas fa-wallet"></i>
+                <span>{purchaseLoading ? '处理中...' : walletConnected ? '确认支付' : '连接钱包并支付'}</span>
+              </button>
+
+              {/* 提示信息 */}
+              <div className="mt-4 text-xs text-medium text-center">
+                <p>支付使用以太坊区块链钱包（MetaMask）</p>
+                <p className="mt-1">请确保您的钱包有足够的ETH余额</p>
+              </div>
             </div>
           </div>
         )}

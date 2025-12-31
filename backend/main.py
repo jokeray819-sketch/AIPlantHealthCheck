@@ -13,7 +13,10 @@ from volcenginesdkarkruntime import Ark
 
 from database import engine, get_db, Base
 from models import User, Membership
-from schemas import UserRegister, UserLogin, Token, UserResponse, DetectionResult, MembershipResponse
+from schemas import (
+    UserRegister, UserLogin, Token, UserResponse, DetectionResult, 
+    MembershipResponse, MembershipPurchaseRequest, MembershipPurchaseResponse
+)
 from auth import (
     get_password_hash,
     authenticate_user,
@@ -154,6 +157,52 @@ async def get_membership_status(
         monthly_detections=membership.monthly_detections,
         remaining_detections=remaining
     )
+
+@app.post("/membership/purchase", response_model=MembershipPurchaseResponse)
+async def purchase_membership(
+    purchase_data: MembershipPurchaseRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """购买会员（通过区块链钱包支付）"""
+    # 验证交易哈希格式（基本验证）
+    if not purchase_data.transaction_hash or len(purchase_data.transaction_hash) < 10:
+        raise HTTPException(status_code=400, detail="无效的交易哈希")
+    
+    # 验证钱包地址格式（基本验证）
+    if not purchase_data.wallet_address or len(purchase_data.wallet_address) < 10:
+        raise HTTPException(status_code=400, detail="无效的钱包地址")
+    
+    # 验证会员套餐类型
+    valid_plans = ["monthly", "quarterly", "yearly"]
+    if purchase_data.plan not in valid_plans:
+        raise HTTPException(status_code=400, detail="无效的会员套餐类型")
+    
+    # 在实际生产环境中，这里应该：
+    # 1. 验证区块链交易是否真实存在
+    # 2. 验证交易金额是否正确
+    # 3. 验证交易是否已被确认
+    # 4. 防止重复使用同一交易哈希
+    # 
+    # 为了演示，我们直接将用户升级为VIP
+    
+    try:
+        # 获取或创建会员记录
+        membership = get_or_create_membership(db, current_user.id)
+        
+        # 升级为VIP
+        membership.is_vip = True
+        db.commit()
+        db.refresh(membership)
+        
+        return MembershipPurchaseResponse(
+            success=True,
+            message=f"恭喜！您已成功开通{purchase_data.plan}会员",
+            is_vip=True
+        )
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"会员开通失败: {str(e)}")
 
 # ==================== 植物健康检测相关路由 ====================
 
