@@ -5,6 +5,8 @@ import axios from 'axios';
 const AI_ANALYSIS_DELAY = 1500; // AI分析页面显示时间（毫秒）
 //const BASE_URL = 'http://192.168.11.252:8000';
 const BASE_URL = 'http://127.0.0.1:8000';
+// 区块链支付配置（生产环境应从环境变量读取）
+const PAYMENT_RECIPIENT_ADDRESS = '0x742d35Cc6634C0532925a3b844Bc454e4438f44e'; // 收款地址
 
 function App() {
   // 页面导航状态
@@ -171,18 +173,18 @@ function App() {
         }
       }
 
-      // 获取价格（根据套餐）
-      const prices = {
-        monthly: '0.001',
-        quarterly: '0.0025',
-        yearly: '0.008'
+      // 获取价格（根据套餐，以Wei为单位避免浮点运算）
+      const pricesInWei = {
+        monthly: '1000000000000000',    // 0.001 ETH
+        quarterly: '2500000000000000',  // 0.0025 ETH
+        yearly: '8000000000000000'      // 0.008 ETH
       };
 
       // 发送交易
       const transactionParameters = {
-        to: '0x742d35Cc6634C0532925a3b844Bc454e4438f44e', // 收款地址（示例地址）
+        to: PAYMENT_RECIPIENT_ADDRESS, // 使用配置的收款地址
         from: address,
-        value: (parseFloat(prices[selectedPlan]) * 1e18).toString(16), // 转换为Wei并转十六进制
+        value: '0x' + BigInt(pricesInWei[selectedPlan]).toString(16), // 转换为十六进制
       };
 
       const txHash = await window.ethereum.request({
@@ -1031,7 +1033,6 @@ function App() {
                       </div>
                       <div className="text-right">
                         <p className="text-2xl font-bold text-primary">0.001 ETH</p>
-                        <p className="text-xs text-medium">约 $3.00</p>
                       </div>
                     </div>
                   </div>
@@ -1040,7 +1041,7 @@ function App() {
                     onClick={() => setSelectedPlan('quarterly')}
                     className={`border-2 rounded-lg p-4 cursor-pointer transition relative ${selectedPlan === 'quarterly' ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-primary/50'}`}
                   >
-                    <span className="absolute top-2 right-2 bg-warning text-white text-xs px-2 py-0.5 rounded-full">省17%</span>
+                    <span className="absolute top-2 right-2 bg-warning text-white text-xs px-2 py-0.5 rounded-full">优惠</span>
                     <div className="flex justify-between items-center">
                       <div>
                         <h5 className="font-semibold text-dark">季度会员</h5>
@@ -1057,7 +1058,7 @@ function App() {
                     onClick={() => setSelectedPlan('yearly')}
                     className={`border-2 rounded-lg p-4 cursor-pointer transition relative ${selectedPlan === 'yearly' ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-primary/50'}`}
                   >
-                    <span className="absolute top-2 right-2 bg-danger text-white text-xs px-2 py-0.5 rounded-full">省33%</span>
+                    <span className="absolute top-2 right-2 bg-danger text-white text-xs px-2 py-0.5 rounded-full">最划算</span>
                     <div className="flex justify-between items-center">
                       <div>
                         <h5 className="font-semibold text-dark">年度会员</h5>

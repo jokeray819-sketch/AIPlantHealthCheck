@@ -165,18 +165,29 @@ async def purchase_membership(
     db: Session = Depends(get_db)
 ):
     """购买会员（通过区块链钱包支付）"""
-    # 验证交易哈希格式（基本验证）
-    if not purchase_data.transaction_hash or len(purchase_data.transaction_hash) < 10:
-        raise HTTPException(status_code=400, detail="无效的交易哈希")
+    import re
     
-    # 验证钱包地址格式（基本验证）
-    if not purchase_data.wallet_address or len(purchase_data.wallet_address) < 10:
-        raise HTTPException(status_code=400, detail="无效的钱包地址")
+    # 验证交易哈希格式（以太坊交易哈希：0x + 64位十六进制）
+    tx_hash_pattern = r'^0x[a-fA-F0-9]{64}$'
+    if not re.match(tx_hash_pattern, purchase_data.transaction_hash):
+        raise HTTPException(status_code=400, detail="无效的交易哈希格式")
+    
+    # 验证钱包地址格式（以太坊地址：0x + 40位十六进制）
+    wallet_pattern = r'^0x[a-fA-F0-9]{40}$'
+    if not re.match(wallet_pattern, purchase_data.wallet_address):
+        raise HTTPException(status_code=400, detail="无效的钱包地址格式")
     
     # 验证会员套餐类型
     valid_plans = ["monthly", "quarterly", "yearly"]
     if purchase_data.plan not in valid_plans:
         raise HTTPException(status_code=400, detail="无效的会员套餐类型")
+    
+    # 套餐名称映射
+    plan_names = {
+        "monthly": "月度",
+        "quarterly": "季度",
+        "yearly": "年度"
+    }
     
     # 在实际生产环境中，这里应该：
     # 1. 验证区块链交易是否真实存在
@@ -197,7 +208,7 @@ async def purchase_membership(
         
         return MembershipPurchaseResponse(
             success=True,
-            message=f"恭喜！您已成功开通{purchase_data.plan}会员",
+            message=f"恭喜！您已成功开通{plan_names[purchase_data.plan]}会员",
             is_vip=True
         )
     except Exception as e:
