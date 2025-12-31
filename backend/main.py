@@ -2,7 +2,7 @@ from fastapi import FastAPI, File, UploadFile, HTTPException, Depends
 from PIL import Image
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from datetime import timedelta
+from datetime import timedelta, date
 import io
 import random
 import os
@@ -12,8 +12,8 @@ import re
 from volcenginesdkarkruntime import Ark
 
 from database import engine, get_db, Base
-from models import User
-from schemas import UserRegister, UserLogin, Token, UserResponse, DetectionResult
+from models import User, Membership
+from schemas import UserRegister, UserLogin, Token, UserResponse, DetectionResult, MembershipResponse
 from auth import (
     get_password_hash,
     authenticate_user,
@@ -21,6 +21,12 @@ from auth import (
     get_current_user,
     ACCESS_TOKEN_EXPIRE_MINUTES
 )
+
+# 常量定义
+FREE_USER_MONTHLY_LIMIT = 5  # 免费用户每月检测次数限制
+UNLIMITED_DETECTIONS = -1  # VIP用户无限检测次数（使用-1表示）
+DEFAULT_SEVERITY_VALUE = 30  # 默认严重程度值
+HOST = os.getenv("HOST", "0.0.0.0")
 
 # 创建数据库表
 Base.metadata.create_all(bind=engine)
@@ -35,6 +41,35 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ==================== 辅助函数 ====================
+
+def get_or_create_membership(db: Session, user_id: int) -> Membership:
+    """获取或创建用户会员记录"""
+    membership = db.query(Membership).filter(Membership.user_id == user_id).first()
+    
+    if not membership:
+        # 如果没有会员记录，创建一个默认的免费会员
+        membership = Membership(
+            user_id=user_id,
+            is_vip=False,
+            monthly_detections=0
+        )
+        db.add(membership)
+        db.commit()
+        db.refresh(membership)
+    
+    return membership
+
+def reset_monthly_detections_if_needed(db: Session, membership: Membership) -> Membership:
+    """检查并在需要时重置月度检测次数"""
+    today = date.today()
+    if membership.last_reset_date.month != today.month or membership.last_reset_date.year != today.year:
+        membership.monthly_detections = 0
+        membership.last_reset_date = today
+        db.commit()
+        db.refresh(membership)
+    return membership
 
 # ==================== 用户认证相关路由 ====================
 
@@ -61,6 +96,16 @@ def register(user: UserRegister, db: Session = Depends(get_db)):
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
+    
+    # 创建默认免费会员
+    new_membership = Membership(
+        user_id=new_user.id,
+        is_vip=False,
+        monthly_detections=0
+    )
+    db.add(new_membership)
+    db.commit()
+    
     return new_user
 
 @app.post("/login", response_model=Token)
@@ -85,6 +130,30 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
 async def read_users_me(current_user: User = Depends(get_current_user)):
     """获取当前登录用户信息"""
     return current_user
+
+@app.get("/membership/status", response_model=MembershipResponse)
+async def get_membership_status(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """获取用户会员状态和剩余检测次数"""
+    # 获取或创建会员记录
+    membership = get_or_create_membership(db, current_user.id)
+    
+    # 检查并重置月度检测次数
+    membership = reset_monthly_detections_if_needed(db, membership)
+    
+    # 计算剩余检测次数
+    if membership.is_vip:
+        remaining = UNLIMITED_DETECTIONS  # VIP用户无限检测
+    else:
+        remaining = max(0, FREE_USER_MONTHLY_LIMIT - membership.monthly_detections)
+    
+    return MembershipResponse(
+        is_vip=membership.is_vip,
+        monthly_detections=membership.monthly_detections,
+        remaining_detections=remaining
+    )
 
 # ==================== 植物健康检测相关路由 ====================
 
@@ -117,6 +186,20 @@ def image_to_base64(image: Image.Image, format: str = "JPEG") -> str:
     return base64_string
 
 def ai_inference(image: Image.Image):
+    default_prompt = "你是一位植物专家，1.识别图片中的植物\n" + "2.诊断植物的健康状况\n" + "3.若植物健康出现异常，给出养护意见;要求按照如下responseBody格式输出：{\"plant_name\": \"绿萝\", \"status\": \"健康\", \"suggestion\": \"您的植物状态良好！继续保持当前的养护方式，定期浇水，保持适当光照。建议每2-3天浇水一次，避免积水。\"}"
+    # 读取 prompt.md 文件内容
+    prompt_file_path = os.path.join(os.path.dirname(__file__), "prompt.md")
+    try:
+        with open(prompt_file_path, "r", encoding="utf-8") as f:
+            prompt_content = f.read()
+        print("----- 读取 prompt.md 内容 -----")
+        print(prompt_content)
+    except FileNotFoundError:
+        print(f"警告: 未找到 prompt.md 文件，路径: {prompt_file_path}")
+        prompt_content = default_prompt
+    except Exception as e:
+        print(f"警告: 读取 prompt.md 文件时出错: {e}")
+        prompt_content = default_prompt
     # 请确保您已将 API Key 存储在环境变量 ARK_API_KEY 中
     # 初始化Ark客户端，从环境变量中读取您的API Key
     client = Ark(
@@ -141,9 +224,7 @@ def ai_inference(image: Image.Image):
                             "url": f"data:image/jpeg;base64,{image_to_base64(image)}"
                         },
                     },
-                    {"type": "text", "text": "你是一位植物专家，1.识别图片中的植物\n" + "2.诊断植物的健康状况\n" + "3.若植物健康出现异常，给出养护意见"},
-                    {"type": "text", "text": "要求按照如下responseBody格式输出："},
-                    {"type": "text", "text": "{\"plant_name\": \"绿萝\", \"status\": \"健康\", \"suggestion\": \"您的植物状态良好！继续保持当前的养护方式，定期浇水，保持适当光照。建议每2-3天浇水一次，避免积水。\""},
+                    {"type": "text", "text": prompt_content}
                 ],
             }
         ],
@@ -175,44 +256,115 @@ def ai_inference(image: Image.Image):
         print("警告: 无法解析 JSON，使用默认值")
         return {
             "plant_name": "未知植物",
+            "scientific_name": "Unknown",
             "status": "无法识别",
-            "suggestion": content if content else "无法获取诊断结果，请重试。"
+            "problem_judgment": content if content else "无法获取诊断结果，请重试。",
+            "severity": "轻度",
+            "severityValue": DEFAULT_SEVERITY_VALUE,
+            "handling_suggestions": ["请重新拍摄清晰的植物照片", "确保光线充足", "尽量拍摄叶片细节"],
+            "need_product": False,
+            "plant_introduction": "暂无植物信息"
         }
 
 # 模拟 AI 推理过程 (实际开发时这里替换为你的 PyTorch/TensorFlow 模型)
 def mock_ai_inference(image: Image.Image):
-    # 这里通常会有模型预测逻辑: model.predict(image)
-    # 根据设计文件中的三种测试结果，返回不同的诊断结果
+    # 根据新的响应格式返回模拟结果
     results = [
         # 结果1: 健康植物
         {
-            "plant_name": "绿萝", 
-            "status": "健康", 
-            "suggestion": "您的植物状态良好！继续保持当前的养护方式，定期浇水，保持适当光照。建议每2-3天浇水一次，避免积水。"
+            "plant_name": "绿萝",
+            "scientific_name": "Epipremnum aureum",
+            "status": "健康",
+            "problem_judgment": "植株长势良好，叶片翠绿无异常",
+            "severity": "轻度",
+            "severityValue": 30,
+            "handling_suggestions": [
+                "施加适量的液体肥料",
+                "每月施肥一次，遵循薄肥勤施原则",
+                "增加光照时间，促进光合作用"
+            ],
+            "need_product": False,
+            "plant_introduction": "常见室内观叶植物，喜温暖湿润环境，耐阴性强。"
         },
-        # 结果2: 早疫病
+        # 结果2: 缺水
         {
-            "plant_name": "番茄", 
-            "status": "早疫病", 
-            "suggestion": "检测到早疫病症状。建议立即采取以下措施：1) 移除并销毁受感染的叶片；2) 使用波尔多液或代森锰锌进行喷洒；3) 改善通风条件；4) 减少叶面喷水。"
+            "plant_name": "发财树",
+            "scientific_name": "Pachira aquatica",
+            "status": "缺水",
+            "problem_judgment": "叶片下垂萎蔫，土壤干燥板结",
+            "severity": "中度",
+            "severityValue": 50,
+            "handling_suggestions": [
+                "立即浇透水，直至盆底有水流出",
+                "放置在通风处，避免积水",
+                "后续保持土壤微湿，不干不浇"
+            ],
+            "need_product": False,
+            "plant_introduction": "热带观叶植物，耐旱性较强，喜温暖湿润环境。"
         },
-        # 结果3: 黑斑病
+        # 结果3: 虫害
         {
-            "plant_name": "月季", 
-            "status": "黑斑病", 
-            "suggestion": "检测到黑斑病。处理方案：1) 及时清理落叶和病叶；2) 使用杀菌剂（如多菌灵）每7-10天喷洒一次；3) 保持良好通风；4) 避免晚间浇水，减少叶面湿度。"
+            "plant_name": "月季",
+            "scientific_name": "Rosa chinensis",
+            "status": "虫害",
+            "problem_judgment": "叶片背面出现蚜虫，伴随叶片卷曲发黄",
+            "severity": "中度",
+            "severityValue": 50,
+            "handling_suggestions": [
+                "用清水冲洗叶片背面虫体",
+                "喷施专用杀虫剂",
+                "放置通风处减少虫害复发"
+            ],
+            "need_product": True,
+            "plant_introduction": "常见观赏花卉，花期长，喜阳光充足环境。"
         },
-        # 结果4: 缺肥症状
+        # 结果4: 缺肥
         {
-            "plant_name": "吊兰", 
-            "status": "缺肥", 
-            "suggestion": "植物显示缺肥症状。建议：1) 使用均衡型液态肥料，每2周施肥一次；2) 注意氮磷钾比例为20-20-20；3) 施肥后充分浇水；4) 避免过度施肥导致肥害。"
+            "plant_name": "吊兰",
+            "scientific_name": "Chlorophytum comosum",
+            "status": "缺肥",
+            "problem_judgment": "叶片发黄，生长缓慢，缺乏光泽",
+            "severity": "轻度",
+            "severityValue": 30,
+            "handling_suggestions": [
+                "使用均衡型液态肥料，每2周施肥一次",
+                "注意氮磷钾比例为20-20-20",
+                "施肥后充分浇水，避免烧根"
+            ],
+            "need_product": True,
+            "plant_introduction": "多年生常绿草本植物，适应性强，易养护。"
         },
-        # 结果5: 虫害
+        # 结果5: 光照不当
         {
-            "plant_name": "玫瑰", 
-            "status": "虫害", 
-            "suggestion": "检测到虫害。处理建议：1) 使用杀虫剂（如吡虫啉）喷洒叶片正反面；2) 对于少量害虫可手工清除；3) 保持环境清洁；4) 定期检查植物，早发现早治疗。"
+            "plant_name": "海芋",
+            "scientific_name": "Alocasia amazonica",
+            "status": "光照不当",
+            "problem_judgment": "叶片出现灼伤斑点，颜色变褐",
+            "severity": "轻度",
+            "severityValue": 30,
+            "handling_suggestions": [
+                "将植物移至散射光充足的位置",
+                "避免阳光直射，特别是夏季中午",
+                "定期旋转花盆，使植物均匀受光"
+            ],
+            "need_product": False,
+            "plant_introduction": "热带观叶植物，叶片宽大，喜高温多湿环境。"
+        },
+        # 结果6: 病害
+        {
+            "plant_name": "龟背竹",
+            "scientific_name": "Monstera deliciosa",
+            "status": "病害",
+            "problem_judgment": "叶片出现褐色斑点，边缘枯黄",
+            "severity": "中度",
+            "severityValue": 50,
+            "handling_suggestions": [
+                "及时清理病叶，避免病菌扩散",
+                "使用杀菌剂喷洒叶片正反面",
+                "改善通风条件，减少湿度"
+            ],
+            "need_product": True,
+            "plant_introduction": "大型观叶植物，叶片独特，适合室内摆放。"
         }
     ]
     return random.choice(results)
@@ -220,18 +372,30 @@ def mock_ai_inference(image: Image.Image):
 @app.post("/predict", response_model=DetectionResult)
 async def predict_plant_health(
     file: UploadFile = File(...),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
-    # 1. 验证文件类型
+    # 检查用户会员状态和检测次数
+    membership = get_or_create_membership(db, current_user.id)
+    membership = reset_monthly_detections_if_needed(db, membership)
+    
+    # 检查免费用户的检测次数限制
+    if not membership.is_vip and membership.monthly_detections >= FREE_USER_MONTHLY_LIMIT:
+        raise HTTPException(
+            status_code=403, 
+            detail=f"本月检测次数已用完。免费用户每月最多可检测{FREE_USER_MONTHLY_LIMIT}次，请升级为VIP获得无限检测次数。"
+        )
+    
+    # 验证文件类型
     if file.content_type not in ["image/jpeg", "image/png"]:
         raise HTTPException(status_code=400, detail="只支持 JPG 或 PNG 图片格式")
 
     try:
-        # 2. 读取图片字节并转换为 PIL 对象
+        # 读取图片字节并转换为 PIL 对象
         image_data = await file.read()
         image = Image.open(io.BytesIO(image_data))
         
-        # 3. 调用 AI 模型
+        # 调用 AI 模型
         try:
             prediction = ai_inference(image)
         except Exception as api_error:
@@ -244,17 +408,34 @@ async def predict_plant_health(
             print(f"警告: prediction 不是字典格式: {type(prediction)}")
             prediction = {
                 "plant_name": "未知植物",
+                "scientific_name": "Unknown",
                 "status": "无法识别",
-                "suggestion": str(prediction) if prediction else "无法获取诊断结果"
+                "problem_judgment": "无法识别植物健康状态",
+                "severity": "轻度",
+                "severityValue": DEFAULT_SEVERITY_VALUE,
+                "handling_suggestions": ["请重新拍摄清晰的植物照片", "确保光线充足", "尽量拍摄叶片细节"],
+                "need_product": False,
+                "plant_introduction": str(prediction) if prediction else "无法获取植物信息"
             }
         
-        # 4. 返回 JSON 结果
-        return DetectionResult(
+        # 返回检测结果
+        result = DetectionResult(
             plant_name=prediction.get("plant_name", "未知植物"),
+            scientific_name=prediction.get("scientific_name", "Unknown"),
             status=prediction.get("status", "无法识别"),
-            confidence=round(random.uniform(0.85, 0.99), 2),
-            treatment_suggestion=prediction.get("suggestion", "无法获取建议")
+            problem_judgment=prediction.get("problem_judgment", "无法识别问题"),
+            severity=prediction.get("severity", "轻度"),
+            severityValue=prediction.get("severityValue", DEFAULT_SEVERITY_VALUE),
+            handling_suggestions=prediction.get("handling_suggestions", ["请重新检测"]),
+            need_product=prediction.get("need_product", False),
+            plant_introduction=prediction.get("plant_introduction", "无植物信息")
         )
+        
+        # 增加检测次数（仅在成功检测后）
+        membership.monthly_detections += 1
+        db.commit()
+        
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"识别失败: {str(e)}")
 

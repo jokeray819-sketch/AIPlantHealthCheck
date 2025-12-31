@@ -3,7 +3,8 @@ import axios from 'axios';
 
 // 常量定义
 const AI_ANALYSIS_DELAY = 1500; // AI分析页面显示时间（毫秒）
-const BASE_URL = 'http://192.168.11.252:8000';
+//const BASE_URL = 'http://192.168.11.252:8000';
+const BASE_URL = 'http://127.0.0.1:8000';
 
 function App() {
   // 页面导航状态
@@ -26,6 +27,9 @@ function App() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [currentUser, setCurrentUser] = useState(null);
+  
+  // 会员相关状态
+  const [membershipStatus, setMembershipStatus] = useState(null);
 
   // Refs for file inputs
   const fileInputRef = useRef(null);
@@ -42,14 +46,29 @@ function App() {
   // 获取当前用户信息
   const fetchCurrentUser = async (token) => {
     try {
-      const response = await axios.get(BASE_URL+'/users/me', {
+      const response = await axios.get(`${BASE_URL}/users/me`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       setCurrentUser(response.data);
       setIsAuthenticated(true);
+      // 获取会员状态
+      await fetchMembershipStatus(token);
     } catch (error) {
       localStorage.removeItem('token');
       setIsAuthenticated(false);
+    }
+  };
+
+  // 获取会员状态
+  const fetchMembershipStatus = async (token) => {
+    try {
+      const response = await axios.get(`${BASE_URL}/membership/status`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      setMembershipStatus(response.data);
+    } catch (error) {
+      console.error('获取会员状态失败:', error);
+      setMembershipStatus(null);
     }
   };
 
@@ -58,7 +77,7 @@ function App() {
     e.preventDefault();
     setLoading(true);
     try {
-      const response = await axios.post(BASE_URL+'/register', {
+      const response = await axios.post(`${BASE_URL}/register`, {
         username,
         email,
         password
@@ -78,7 +97,7 @@ function App() {
     e.preventDefault();
     setLoading(true);
     try {
-      const response = await axios.post(BASE_URL+'/login', {
+      const response = await axios.post(`${BASE_URL}/login`, {
         username,
         password
       });
@@ -101,6 +120,7 @@ function App() {
     localStorage.removeItem('token');
     setIsAuthenticated(false);
     setCurrentUser(null);
+    setMembershipStatus(null);
     setResult(null);
     setPreview(null);
     setSelectedFile(null);
@@ -131,13 +151,16 @@ function App() {
 
     setLoading(true);
     try {
-      const response = await axios.post(BASE_URL+'/predict', formData, {
+      const response = await axios.post(`${BASE_URL}/predict`, formData, {
         headers: { 
           'Content-Type': 'multipart/form-data',
           'Authorization': `Bearer ${token}`
         }
       });
       setResult(response.data);
+      
+      // 刷新会员状态以更新剩余检测次数
+      await fetchMembershipStatus(token);
       
       // 分析完成后跳转到诊断结果页面
       setTimeout(() => {
@@ -150,6 +173,8 @@ function App() {
       if (error.response?.status === 401) {
         alert("登录已过期，请重新登录");
         handleLogout();
+      } else if (error.response?.status === 403) {
+        alert(error.response?.data?.detail || "检测次数已用完");
       } else {
         alert("服务器连接失败，请检查后端是否启动");
       }
@@ -377,12 +402,9 @@ function App() {
           
           {/* 植物信息 */}
           <div className="bg-white rounded-lg p-4 mb-4 card-shadow">
-            <div className="flex justify-between items-center mb-2">
-              <h3 className="text-lg font-bold text-dark">{result.plant_name}</h3>
-              <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                置信度: {(result.confidence * 100).toFixed(1)}%
-              </span>
-            </div>
+            <h3 className="text-lg font-bold text-dark mb-1">{result.plant_name}</h3>
+            <p className="text-sm text-medium italic mb-2">{result.scientific_name}</p>
+            <p className="text-sm text-dark">{result.plant_introduction}</p>
           </div>
           
           {/* 健康状况 */}
@@ -394,11 +416,28 @@ function App() {
             
             <div className="mb-3">
               <p className="text-sm text-medium mb-1">问题判断</p>
-              <p className="font-medium text-dark">
-                <span className={`inline-block px-3 py-1 rounded-full text-sm ${result.status === '健康' ? 'bg-green-100 text-green-700' : 'bg-warning/20 text-warning'}`}>
-                  {result.status}
-                </span>
-              </p>
+              <p className="text-sm text-dark mb-2">{result.problem_judgment}</p>
+              <span className={`inline-block px-3 py-1 rounded-full text-sm ${result.status === '健康' ? 'bg-green-100 text-green-700' : 'bg-warning/20 text-warning'}`}>
+                {result.status}
+              </span>
+            </div>
+            
+            {/* 严重程度 */}
+            <div className="mb-3">
+              <div className="flex justify-between items-center mb-1">
+                <p className="text-sm text-medium">严重程度</p>
+                <p className="text-sm font-medium text-dark">{result.severity}</p>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div 
+                  className={`h-2 rounded-full ${
+                    result.severityValue <= 30 ? 'bg-green-500' : 
+                    result.severityValue <= 50 ? 'bg-yellow-500' : 
+                    result.severityValue <= 80 ? 'bg-orange-500' : 'bg-red-500'
+                  }`}
+                  style={{ width: `${result.severityValue}%` }}
+                ></div>
+              </div>
             </div>
             
             {/* 处理建议 */}
@@ -407,7 +446,14 @@ function App() {
                 <i className="fas fa-lightbulb mr-1"></i>
                 处理建议
               </p>
-              <p className="text-sm text-dark">{result.treatment_suggestion}</p>
+              <ol className="text-sm text-dark space-y-1">
+                {(result.handling_suggestions || []).map((suggestion, index) => (
+                  <li key={index} className="flex">
+                    <span className="mr-2">{index + 1}.</span>
+                    <span>{suggestion}</span>
+                  </li>
+                ))}
+              </ol>
             </div>
           </div>
           
@@ -418,31 +464,40 @@ function App() {
           </div>
           
           {/* 操作按钮 */}
-          <div className="flex gap-3">
+          <div className="flex gap-3 mb-3">
             <button 
               onClick={() => {
-                setShowResultPage(false);
-                setShowCapturePage(true);
-                setPreview(null);
-                setSelectedFile(null);
-                setResult(null);
+                alert('保存功能开发中...');
               }}
               className="flex-1 bg-white text-primary border border-primary py-3 rounded-lg font-medium btn-shadow transition hover:bg-primary/5"
             >
-              重新检测
+              <i className="fas fa-bookmark mr-2"></i>
+              保存我的植物
             </button>
             <button 
               onClick={() => {
                 setShowResultPage(false);
-                setPreview(null);
-                setSelectedFile(null);
-                setResult(null);
+                setCurrentPage('shop');
               }}
               className="flex-1 bg-primary text-white py-3 rounded-lg font-medium btn-shadow transition hover:bg-primary/90"
             >
-              返回首页
+              <i className="fas fa-shopping-cart mr-2"></i>
+              查看推荐产品
             </button>
           </div>
+          
+          <button 
+            onClick={() => {
+              setShowResultPage(false);
+              setShowCapturePage(true);
+              setPreview(null);
+              setSelectedFile(null);
+              setResult(null);
+            }}
+            className="w-full bg-gray-100 text-dark py-3 rounded-lg font-medium transition hover:bg-gray-200"
+          >
+            重新检测
+          </button>
         </>
       )}
     </div>
@@ -618,16 +673,28 @@ function App() {
       </div>
       
       {/* 会员信息 */}
-      <div className="bg-gradient-to-r from-primary to-secondary rounded-lg p-4 mb-6 text-white">
-        <div className="flex justify-between items-center mb-3">
-          <h3 className="font-semibold">会员状态</h3>
-          <span className="bg-white/20 text-white text-xs px-2 py-1 rounded-full">免费用户</span>
+      {isAuthenticated && (
+        <div className="bg-gradient-to-r from-primary to-secondary rounded-lg p-4 mb-6 text-white">
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="font-semibold">会员状态</h3>
+            <span className="bg-white/20 text-white text-xs px-2 py-1 rounded-full">
+              {membershipStatus?.is_vip ? 'VIP用户' : '免费用户'}
+            </span>
+          </div>
+          <p className="text-sm mb-3">
+            本月剩余诊断次数: <span className="font-bold">
+              {membershipStatus ? (
+                membershipStatus.is_vip ? '无限' : `${membershipStatus.remaining_detections}/5`
+              ) : '加载中...'}
+            </span>
+          </p>
+          {!membershipStatus?.is_vip && (
+            <button className="w-full bg-white text-primary font-medium py-2 rounded-lg btn-shadow transition hover:bg-white/90">
+              立即开通会员
+            </button>
+          )}
         </div>
-        <p className="text-sm mb-3">本月剩余诊断次数: <span className="font-bold">5/5</span></p>
-        <button className="w-full bg-white text-primary font-medium py-2 rounded-lg btn-shadow transition hover:bg-white/90">
-          立即开通会员
-        </button>
-      </div>
+      )}
 
       {/* 功能列表 */}
       <div className="bg-white rounded-lg overflow-hidden mb-6 card-shadow">
