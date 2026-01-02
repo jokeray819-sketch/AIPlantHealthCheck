@@ -2,7 +2,7 @@ from fastapi import FastAPI, File, UploadFile, HTTPException, Depends
 from PIL import Image
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from datetime import timedelta, date
+from datetime import timedelta, date, datetime
 import io
 import random
 import os
@@ -10,12 +10,15 @@ import base64
 import json
 import re
 from volcenginesdkarkruntime import Ark
+from typing import List
 
 from database import engine, get_db, Base
-from models import User, Membership
+from models import User, Membership, DiagnosisHistory, MyPlant, Reminder
 from schemas import (
     UserRegister, UserLogin, Token, UserResponse, DetectionResult, 
-    MembershipResponse, MembershipPurchaseRequest, MembershipPurchaseResponse
+    MembershipResponse, MembershipPurchaseRequest, MembershipPurchaseResponse,
+    DiagnosisHistoryResponse, MyPlantCreate, MyPlantUpdate, MyPlantResponse,
+    ReminderCreate, ReminderUpdate, ReminderResponse
 )
 from auth import (
     get_password_hash,
@@ -512,6 +515,21 @@ async def predict_plant_health(
             plant_introduction=prediction.get("plant_introduction", "无植物信息")
         )
         
+        # 保存诊断历史
+        diagnosis_history = DiagnosisHistory(
+            user_id=current_user.id,
+            plant_name=result.plant_name,
+            scientific_name=result.scientific_name,
+            status=result.status,
+            problem_judgment=result.problem_judgment,
+            severity=result.severity,
+            severity_value=result.severityValue,
+            handling_suggestions=json.dumps(result.handling_suggestions, ensure_ascii=False),
+            need_product=result.need_product,
+            plant_introduction=result.plant_introduction
+        )
+        db.add(diagnosis_history)
+        
         # 增加检测次数（仅在成功检测后）
         membership.monthly_detections += 1
         db.commit()
@@ -519,6 +537,374 @@ async def predict_plant_health(
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"识别失败: {str(e)}")
+
+# ==================== 诊断历史相关路由 ====================
+
+@app.get("/diagnosis-history", response_model=List[DiagnosisHistoryResponse])
+async def get_diagnosis_history(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    skip: int = 0,
+    limit: int = 20
+):
+    """获取当前用户的诊断历史"""
+    histories = db.query(DiagnosisHistory).filter(
+        DiagnosisHistory.user_id == current_user.id
+    ).order_by(DiagnosisHistory.created_at.desc()).offset(skip).limit(limit).all()
+    return histories
+
+@app.get("/diagnosis-history/{history_id}", response_model=DiagnosisHistoryResponse)
+async def get_diagnosis_history_by_id(
+    history_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """获取指定诊断历史详情"""
+    history = db.query(DiagnosisHistory).filter(
+        DiagnosisHistory.id == history_id,
+        DiagnosisHistory.user_id == current_user.id
+    ).first()
+    
+    if not history:
+        raise HTTPException(status_code=404, detail="诊断历史不存在")
+    
+    return history
+
+@app.delete("/diagnosis-history/{history_id}")
+async def delete_diagnosis_history(
+    history_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """删除指定诊断历史"""
+    history = db.query(DiagnosisHistory).filter(
+        DiagnosisHistory.id == history_id,
+        DiagnosisHistory.user_id == current_user.id
+    ).first()
+    
+    if not history:
+        raise HTTPException(status_code=404, detail="诊断历史不存在")
+    
+    db.delete(history)
+    db.commit()
+    return {"message": "诊断历史已删除"}
+
+# ==================== 我的植物相关路由 ====================
+
+@app.get("/my-plants", response_model=List[MyPlantResponse])
+async def get_my_plants(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """获取当前用户的所有植物"""
+    plants = db.query(MyPlant).filter(
+        MyPlant.user_id == current_user.id
+    ).order_by(MyPlant.created_at.desc()).all()
+    return plants
+
+@app.get("/my-plants/{plant_id}", response_model=MyPlantResponse)
+async def get_my_plant(
+    plant_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """获取指定植物详情"""
+    plant = db.query(MyPlant).filter(
+        MyPlant.id == plant_id,
+        MyPlant.user_id == current_user.id
+    ).first()
+    
+    if not plant:
+        raise HTTPException(status_code=404, detail="植物不存在")
+    
+    return plant
+
+@app.post("/my-plants", response_model=MyPlantResponse)
+async def create_my_plant(
+    plant: MyPlantCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """创建新的植物记录"""
+    # 计算下次浇水日期
+    next_watering_date = None
+    if plant.watering_frequency and plant.last_watered:
+        next_watering_date = plant.last_watered + timedelta(days=plant.watering_frequency)
+    
+    new_plant = MyPlant(
+        user_id=current_user.id,
+        plant_name=plant.plant_name,
+        scientific_name=plant.scientific_name,
+        nickname=plant.nickname,
+        status=plant.status,
+        image_url=plant.image_url,
+        notes=plant.notes,
+        watering_frequency=plant.watering_frequency,
+        last_watered=plant.last_watered,
+        next_watering_date=next_watering_date
+    )
+    
+    db.add(new_plant)
+    db.commit()
+    db.refresh(new_plant)
+    
+    # 如果设置了浇水频率，创建浇水提醒
+    if next_watering_date:
+        watering_reminder = Reminder(
+            user_id=current_user.id,
+            plant_id=new_plant.id,
+            reminder_type="watering",
+            title=f"浇水提醒：{plant.nickname or plant.plant_name}",
+            message=f"该给 {plant.nickname or plant.plant_name} 浇水了！",
+            scheduled_date=datetime.combine(next_watering_date, datetime.min.time())
+        )
+        db.add(watering_reminder)
+        db.commit()
+    
+    return new_plant
+
+@app.put("/my-plants/{plant_id}", response_model=MyPlantResponse)
+async def update_my_plant(
+    plant_id: int,
+    plant_update: MyPlantUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """更新植物信息"""
+    plant = db.query(MyPlant).filter(
+        MyPlant.id == plant_id,
+        MyPlant.user_id == current_user.id
+    ).first()
+    
+    if not plant:
+        raise HTTPException(status_code=404, detail="植物不存在")
+    
+    # 更新字段
+    update_data = plant_update.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(plant, field, value)
+    
+    # 更新下次浇水日期
+    if plant.watering_frequency and plant.last_watered:
+        plant.next_watering_date = plant.last_watered + timedelta(days=plant.watering_frequency)
+        
+        # 更新或创建浇水提醒
+        existing_reminder = db.query(Reminder).filter(
+            Reminder.plant_id == plant_id,
+            Reminder.reminder_type == "watering",
+            Reminder.is_completed == False
+        ).first()
+        
+        if existing_reminder:
+            existing_reminder.scheduled_date = datetime.combine(plant.next_watering_date, datetime.min.time())
+            existing_reminder.title = f"浇水提醒：{plant.nickname or plant.plant_name}"
+            existing_reminder.message = f"该给 {plant.nickname or plant.plant_name} 浇水了！"
+        else:
+            new_reminder = Reminder(
+                user_id=current_user.id,
+                plant_id=plant_id,
+                reminder_type="watering",
+                title=f"浇水提醒：{plant.nickname or plant.plant_name}",
+                message=f"该给 {plant.nickname or plant.plant_name} 浇水了！",
+                scheduled_date=datetime.combine(plant.next_watering_date, datetime.min.time())
+            )
+            db.add(new_reminder)
+    
+    db.commit()
+    db.refresh(plant)
+    return plant
+
+@app.delete("/my-plants/{plant_id}")
+async def delete_my_plant(
+    plant_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """删除植物"""
+    plant = db.query(MyPlant).filter(
+        MyPlant.id == plant_id,
+        MyPlant.user_id == current_user.id
+    ).first()
+    
+    if not plant:
+        raise HTTPException(status_code=404, detail="植物不存在")
+    
+    db.delete(plant)
+    db.commit()
+    return {"message": "植物已删除"}
+
+@app.post("/my-plants/{plant_id}/water")
+async def water_plant(
+    plant_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """记录浇水"""
+    plant = db.query(MyPlant).filter(
+        MyPlant.id == plant_id,
+        MyPlant.user_id == current_user.id
+    ).first()
+    
+    if not plant:
+        raise HTTPException(status_code=404, detail="植物不存在")
+    
+    # 更新浇水记录
+    plant.last_watered = date.today()
+    if plant.watering_frequency:
+        plant.next_watering_date = plant.last_watered + timedelta(days=plant.watering_frequency)
+        
+        # 标记当前浇水提醒为已完成
+        db.query(Reminder).filter(
+            Reminder.plant_id == plant_id,
+            Reminder.reminder_type == "watering",
+            Reminder.is_completed == False
+        ).update({"is_completed": True})
+        
+        # 创建下次浇水提醒
+        new_reminder = Reminder(
+            user_id=current_user.id,
+            plant_id=plant_id,
+            reminder_type="watering",
+            title=f"浇水提醒：{plant.nickname or plant.plant_name}",
+            message=f"该给 {plant.nickname or plant.plant_name} 浇水了！",
+            scheduled_date=datetime.combine(plant.next_watering_date, datetime.min.time())
+        )
+        db.add(new_reminder)
+    
+    db.commit()
+    db.refresh(plant)
+    return {"message": "浇水记录已更新", "next_watering_date": plant.next_watering_date}
+
+# ==================== 提醒相关路由 ====================
+
+@app.get("/reminders", response_model=List[ReminderResponse])
+async def get_reminders(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    reminder_type: str = None,
+    is_completed: bool = None
+):
+    """获取当前用户的提醒"""
+    query = db.query(Reminder).filter(Reminder.user_id == current_user.id)
+    
+    if reminder_type:
+        query = query.filter(Reminder.reminder_type == reminder_type)
+    
+    if is_completed is not None:
+        query = query.filter(Reminder.is_completed == is_completed)
+    
+    reminders = query.order_by(Reminder.scheduled_date).all()
+    return reminders
+
+@app.get("/reminders/unread-count")
+async def get_unread_reminders_count(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """获取未读提醒数量"""
+    count = db.query(Reminder).filter(
+        Reminder.user_id == current_user.id,
+        Reminder.is_read == False,
+        Reminder.is_completed == False,
+        Reminder.scheduled_date <= datetime.now()
+    ).count()
+    return {"unread_count": count}
+
+@app.post("/reminders", response_model=ReminderResponse)
+async def create_reminder(
+    reminder: ReminderCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """创建新提醒"""
+    new_reminder = Reminder(
+        user_id=current_user.id,
+        plant_id=reminder.plant_id,
+        reminder_type=reminder.reminder_type,
+        title=reminder.title,
+        message=reminder.message,
+        scheduled_date=reminder.scheduled_date
+    )
+    
+    db.add(new_reminder)
+    db.commit()
+    db.refresh(new_reminder)
+    return new_reminder
+
+@app.put("/reminders/{reminder_id}", response_model=ReminderResponse)
+async def update_reminder(
+    reminder_id: int,
+    reminder_update: ReminderUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """更新提醒状态"""
+    reminder = db.query(Reminder).filter(
+        Reminder.id == reminder_id,
+        Reminder.user_id == current_user.id
+    ).first()
+    
+    if not reminder:
+        raise HTTPException(status_code=404, detail="提醒不存在")
+    
+    update_data = reminder_update.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(reminder, field, value)
+    
+    db.commit()
+    db.refresh(reminder)
+    return reminder
+
+@app.delete("/reminders/{reminder_id}")
+async def delete_reminder(
+    reminder_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """删除提醒"""
+    reminder = db.query(Reminder).filter(
+        Reminder.id == reminder_id,
+        Reminder.user_id == current_user.id
+    ).first()
+    
+    if not reminder:
+        raise HTTPException(status_code=404, detail="提醒不存在")
+    
+    db.delete(reminder)
+    db.commit()
+    return {"message": "提醒已删除"}
+
+@app.post("/reminders/create-reexamination/{plant_id}")
+async def create_reexamination_reminder(
+    plant_id: int,
+    days: int = 7,  # Default: remind after 7 days
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """为指定植物创建复查提醒"""
+    plant = db.query(MyPlant).filter(
+        MyPlant.id == plant_id,
+        MyPlant.user_id == current_user.id
+    ).first()
+    
+    if not plant:
+        raise HTTPException(status_code=404, detail="植物不存在")
+    
+    scheduled_date = datetime.now() + timedelta(days=days)
+    
+    new_reminder = Reminder(
+        user_id=current_user.id,
+        plant_id=plant_id,
+        reminder_type="re_examination",
+        title=f"复查提醒：{plant.nickname or plant.plant_name}",
+        message=f"建议再次拍照检查 {plant.nickname or plant.plant_name} 的健康状况",
+        scheduled_date=scheduled_date
+    )
+    
+    db.add(new_reminder)
+    db.commit()
+    db.refresh(new_reminder)
+    return new_reminder
 
 @app.get("/")
 def read_root():
