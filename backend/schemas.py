@@ -52,3 +52,16 @@ class MembershipResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+# 会员购买请求
+class MembershipPurchaseRequest(BaseModel):
+    transaction_hash: str  # 区块链交易哈希
+    wallet_address: str  # 钱包地址
+    plan: str = Field(..., description="会员套餐类型: monthly, quarterly, yearly")
+    wallet_type: str = Field(default="eth", description="钱包类型: eth, ckb")
+
+# 会员购买响应
+class MembershipPurchaseResponse(BaseModel):
+    success: bool
+    message: str
+    is_vip: bool

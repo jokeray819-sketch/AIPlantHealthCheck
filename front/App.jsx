@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import { ccc } from "@ckb-ccc/connector-react";
 
 // 常量定义
 const AI_ANALYSIS_DELAY = 1500; // AI分析页面显示时间（毫秒）
 //const BASE_URL = 'http://192.168.11.252:8000';
 const BASE_URL = 'http://127.0.0.1:8000';
+// 区块链支付配置（生产环境应从环境变量读取）
+const PAYMENT_RECIPIENT_ADDRESS = '0x84Ae0feD8a61E79920A9c01cb60D3c7da26Ea2A7'; // eth sepolia 收款地址
 
 function App() {
   // 页面导航状态
@@ -30,6 +33,13 @@ function App() {
   
   // 会员相关状态
   const [membershipStatus, setMembershipStatus] = useState(null);
+  const [showMembershipModal, setShowMembershipModal] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState('monthly');
+  const [selectedWalletType, setSelectedWalletType] = useState('eth'); // 'eth' or 'ckb'
+  const [selectedCkbWallet, setSelectedCkbWallet] = useState('joyid'); // 'joyid' or 'utxo'
+  const [walletConnected, setWalletConnected] = useState(false);
+  const [walletAddress, setWalletAddress] = useState('');
+  const [purchaseLoading, setPurchaseLoading] = useState(false);
 
   // Refs for file inputs
   const fileInputRef = useRef(null);
@@ -124,6 +134,208 @@ function App() {
     setResult(null);
     setPreview(null);
     setSelectedFile(null);
+  };
+
+  // 连接以太坊钱包
+  const connectEthWallet = async () => {
+    if (typeof window.ethereum !== 'undefined') {
+      try {
+        // 请求切换到Sepolia测试网
+        try {
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: '0xaa36a7' }], // Sepolia testnet chainId
+          });
+        } catch (switchError) {
+          // 如果Sepolia网络不存在，添加它
+          if (switchError.code === 4902) {
+            await window.ethereum.request({
+              method: 'wallet_addEthereumChain',
+              params: [{
+                chainId: '0xaa36a7',
+                chainName: 'Sepolia Test Network',
+                nativeCurrency: {
+                  name: 'SepoliaETH',
+                  symbol: 'ETH',
+                  decimals: 18
+                },
+                rpcUrls: ['https://rpc.sepolia.org'],
+                blockExplorerUrls: ['https://sepolia.etherscan.io']
+              }]
+            });
+          } else {
+            throw switchError;
+          }
+        }
+
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        setWalletAddress(accounts[0]);
+        setWalletConnected(true);
+        return accounts[0];
+      } catch (error) {
+        console.error('连接以太坊钱包失败:', error);
+        alert('连接以太坊钱包失败，请确保已安装MetaMask并已解锁');
+        return null;
+      }
+    } else {
+      alert('请先安装MetaMask钱包插件！');
+      return null;
+    }
+  };
+
+  // 连接CKB钱包（使用CCC库）
+  const connectCkbWallet = async () => {
+    try {
+      let signer;
+      
+      if (selectedCkbWallet === 'joyid') {
+        // 使用CCC连接JoyID钱包（测试网）
+        signer = new ccc.SignerCkbPublicKey(
+          new ccc.ClientPublicTestnet(),
+          ccc.SignerType.JoyID
+        );
+      } else if (selectedCkbWallet === 'utxo') {
+        // 使用CCC连接UTXO钱包（如CKB官方钱包、Neuron等）（测试网）
+        signer = new ccc.SignerCkbPublicKey(
+          new ccc.ClientPublicTestnet(),
+          ccc.SignerType.CKB
+        );
+      } else {
+        throw new Error('不支持的CKB钱包类型');
+      }
+      
+      // 连接钱包
+      await signer.connect();
+      
+      // 获取地址
+      const address = await signer.getAddressObjs();
+      if (address && address.length > 0) {
+        const addressStr = address[0].toString();
+        setWalletAddress(addressStr);
+        setWalletConnected(true);
+        // 保存signer以便后续使用
+        window.ckbSigner = signer;
+        return addressStr;
+      }
+    } catch (error) {
+      console.error('连接CKB钱包失败:', error);
+      const walletName = selectedCkbWallet === 'joyid' ? 'JoyID' : 'UTXO';
+      alert(`连接${walletName}钱包失败，请重试\n` + (error.message || ''));
+      return null;
+    }
+  };
+
+  // 连接钱包（根据选择的类型）
+  const connectWallet = async () => {
+    if (selectedWalletType === 'eth') {
+      return await connectEthWallet();
+    } else if (selectedWalletType === 'ckb') {
+      return await connectCkbWallet();
+    }
+    return null;
+  };
+
+  // 购买会员
+  const handlePurchaseMembership = async () => {
+    if (!isAuthenticated) {
+      alert('请先登录');
+      setShowMembershipModal(false);
+      setShowAuthModal(true);
+      return;
+    }
+
+    setPurchaseLoading(true);
+    try {
+      // 如果钱包未连接，先连接
+      let address = walletAddress;
+      if (!walletConnected) {
+        address = await connectWallet();
+        if (!address) {
+          setPurchaseLoading(false);
+          return;
+        }
+      }
+
+      let txHash;
+
+      if (selectedWalletType === 'eth') {
+        // 以太坊支付流程
+        const pricesInWei = {
+          monthly: '1000000000000000',    // 0.001 ETH
+          quarterly: '2500000000000000',  // 0.0025 ETH
+          yearly: '8000000000000000'      // 0.008 ETH
+        };
+
+        const transactionParameters = {
+          to: PAYMENT_RECIPIENT_ADDRESS,
+          from: address,
+          value: '0x' + BigInt(pricesInWei[selectedPlan]).toString(16),
+        };
+
+        txHash = await window.ethereum.request({
+          method: 'eth_sendTransaction',
+          params: [transactionParameters],
+        });
+      } else if (selectedWalletType === 'ckb') {
+        // CKB支付流程（使用CCC库）
+        const pricesInCKB = {
+          monthly: '10000000000',      // 100 CKB (in shannons: 100 * 10^8)
+          quarterly: '25000000000',    // 250 CKB
+          yearly: '80000000000'        // 800 CKB
+        };
+
+        // 使用CCC发送CKB交易
+        if (window.ckbSigner) {
+          const signer = window.ckbSigner;
+          
+          // 构建交易
+          const tx = ccc.Transaction.from({
+            outputs: [{
+              lock: await ccc.Address.fromString(PAYMENT_RECIPIENT_ADDRESS, signer.client).getScript(),
+              capacity: ccc.fixedPointFrom(pricesInCKB[selectedPlan]),
+            }],
+          });
+          
+          // 完成交易（添加输入和找零）
+          await tx.completeInputsByCapacity(signer);
+          await tx.completeFeeBy(signer, 1000); // 1000 shannons/byte fee rate
+          
+          // 签名并发送交易
+          txHash = await signer.sendTransaction(tx);
+        } else {
+          throw new Error('请先连接CKB钱包');
+        }
+      }
+
+      console.log('交易哈希:', txHash);
+
+      // 调用后端API确认购买
+      const token = localStorage.getItem('token');
+      const response = await axios.post(`${BASE_URL}/membership/purchase`, {
+        transaction_hash: txHash,
+        wallet_address: address,
+        plan: selectedPlan,
+        wallet_type: selectedWalletType
+      }, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.data.success) {
+        alert(response.data.message);
+        // 刷新会员状态
+        await fetchMembershipStatus(token);
+        setShowMembershipModal(false);
+      }
+    } catch (error) {
+      console.error('购买失败:', error);
+      if (error.code === 4001) {
+        alert('您取消了交易');
+      } else {
+        alert(error.response?.data?.detail || error.message || '购买失败，请重试');
+      }
+    } finally {
+      setPurchaseLoading(false);
+    }
   };
 
   // 处理文件选择
@@ -689,7 +901,10 @@ function App() {
             </span>
           </p>
           {!membershipStatus?.is_vip && (
-            <button className="w-full bg-white text-primary font-medium py-2 rounded-lg btn-shadow transition hover:bg-white/90">
+            <button 
+              onClick={() => setShowMembershipModal(true)}
+              className="w-full bg-white text-primary font-medium py-2 rounded-lg btn-shadow transition hover:bg-white/90"
+            >
               立即开通会员
             </button>
           )}
@@ -881,6 +1096,213 @@ function App() {
                   </button>
                 </form>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* 会员购买模态框 */}
+        {showMembershipModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowMembershipModal(false)}>
+            <div className="bg-white rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-2xl font-bold text-dark">开通会员</h3>
+                <button onClick={() => setShowMembershipModal(false)} className="text-medium" aria-label="关闭">
+                  <i className="fas fa-times"></i>
+                </button>
+              </div>
+
+              {/* 会员权益 */}
+              <div className="bg-gradient-to-r from-primary to-secondary rounded-lg p-4 mb-6 text-white">
+                <h4 className="font-bold text-lg mb-3">会员专属权益</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    <i className="fas fa-check-circle"></i>
+                    <span>无限次植物健康检测</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <i className="fas fa-check-circle"></i>
+                    <span>优先使用最新AI模型</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <i className="fas fa-check-circle"></i>
+                    <span>专属会员标识</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <i className="fas fa-check-circle"></i>
+                    <span>7x24小时优先客服支持</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 支付方式选择 */}
+              <div className="mb-6">
+                <h4 className="font-semibold text-dark mb-3">选择支付方式</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div 
+                    onClick={() => {
+                      setSelectedWalletType('eth');
+                      setWalletConnected(false);
+                      setWalletAddress('');
+                    }}
+                    className={`border-2 rounded-lg p-4 cursor-pointer transition text-center ${selectedWalletType === 'eth' ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-primary/50'}`}
+                  >
+                    <div className="text-2xl mb-2">
+                      <i className="fab fa-ethereum"></i>
+                    </div>
+                    <h5 className="font-semibold text-dark text-sm">以太坊</h5>
+                    <p className="text-xs text-medium mt-1">Sepolia测试网</p>
+                  </div>
+                  <div 
+                    onClick={() => {
+                      setSelectedWalletType('ckb');
+                      setWalletConnected(false);
+                      setWalletAddress('');
+                    }}
+                    className={`border-2 rounded-lg p-4 cursor-pointer transition text-center ${selectedWalletType === 'ckb' ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-primary/50'}`}
+                  >
+                    <div className="text-2xl mb-2">
+                      <i className="fas fa-coins"></i>
+                    </div>
+                    <h5 className="font-semibold text-dark text-sm">CKB</h5>
+                    <p className="text-xs text-medium mt-1">Testnet测试网</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* CKB钱包类型选择 - 仅在选择CKB时显示 */}
+              {selectedWalletType === 'ckb' && (
+                <div className="mb-6">
+                  <h4 className="font-semibold text-dark mb-3">选择CKB钱包</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div 
+                      onClick={() => {
+                        setSelectedCkbWallet('joyid');
+                        setWalletConnected(false);
+                        setWalletAddress('');
+                      }}
+                      className={`border-2 rounded-lg p-3 cursor-pointer transition text-center ${selectedCkbWallet === 'joyid' ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-primary/50'}`}
+                    >
+                      <div className="text-xl mb-1">
+                        <i className="fas fa-smile"></i>
+                      </div>
+                      <h5 className="font-semibold text-dark text-xs">JoyID</h5>
+                      <p className="text-xs text-medium mt-1">Web钱包</p>
+                    </div>
+                    <div 
+                      onClick={() => {
+                        setSelectedCkbWallet('utxo');
+                        setWalletConnected(false);
+                        setWalletAddress('');
+                      }}
+                      className={`border-2 rounded-lg p-3 cursor-pointer transition text-center ${selectedCkbWallet === 'utxo' ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-primary/50'}`}
+                    >
+                      <div className="text-xl mb-1">
+                        <i className="fas fa-wallet"></i>
+                      </div>
+                      <h5 className="font-semibold text-dark text-xs">UTXO钱包</h5>
+                      <p className="text-xs text-medium mt-1">Neuron等</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 套餐选择 */}
+              <div className="mb-6">
+                <h4 className="font-semibold text-dark mb-3">选择套餐</h4>
+                <div className="space-y-3">
+                  <div 
+                    onClick={() => setSelectedPlan('monthly')}
+                    className={`border-2 rounded-lg p-4 cursor-pointer transition ${selectedPlan === 'monthly' ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-primary/50'}`}
+                  >
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <h5 className="font-semibold text-dark">月度会员</h5>
+                        <p className="text-sm text-medium">30天无限检测</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-2xl font-bold text-primary">
+                          {selectedWalletType === 'eth' ? '0.001 ETH' : '100 CKB'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div 
+                    onClick={() => setSelectedPlan('quarterly')}
+                    className={`border-2 rounded-lg p-4 cursor-pointer transition relative ${selectedPlan === 'quarterly' ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-primary/50'}`}
+                  >
+                    <span className="absolute top-2 right-2 bg-warning text-white text-xs px-2 py-0.5 rounded-full">优惠</span>
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <h5 className="font-semibold text-dark">季度会员</h5>
+                        <p className="text-sm text-medium">90天无限检测</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-2xl font-bold text-primary">
+                          {selectedWalletType === 'eth' ? '0.0025 ETH' : '250 CKB'}
+                        </p>
+                        <p className="text-xs text-medium line-through">
+                          {selectedWalletType === 'eth' ? '0.003 ETH' : '300 CKB'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div 
+                    onClick={() => setSelectedPlan('yearly')}
+                    className={`border-2 rounded-lg p-4 cursor-pointer transition relative ${selectedPlan === 'yearly' ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-primary/50'}`}
+                  >
+                    <span className="absolute top-2 right-2 bg-danger text-white text-xs px-2 py-0.5 rounded-full">最划算</span>
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <h5 className="font-semibold text-dark">年度会员</h5>
+                        <p className="text-sm text-medium">365天无限检测</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-2xl font-bold text-primary">
+                          {selectedWalletType === 'eth' ? '0.008 ETH' : '800 CKB'}
+                        </p>
+                        <p className="text-xs text-medium line-through">
+                          {selectedWalletType === 'eth' ? '0.012 ETH' : '1200 CKB'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 钱包连接状态 */}
+              {walletConnected && (
+                <div className="mb-4 p-3 bg-green-50 text-green-700 rounded-lg text-sm flex items-center gap-2">
+                  <i className="fas fa-wallet"></i>
+                  <span>钱包已连接: {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}</span>
+                </div>
+              )}
+
+              {/* 支付按钮 */}
+              <button
+                onClick={handlePurchaseMembership}
+                disabled={purchaseLoading}
+                className={`w-full py-3 rounded-lg font-medium text-white btn-shadow transition flex items-center justify-center gap-2 ${purchaseLoading ? 'bg-gray-400' : 'bg-primary hover:bg-primary/90'}`}
+              >
+                <i className="fas fa-wallet"></i>
+                <span>{purchaseLoading ? '处理中...' : walletConnected ? '确认支付' : '连接钱包并支付'}</span>
+              </button>
+
+              {/* 提示信息 */}
+              <div className="mt-4 text-xs text-medium text-center">
+                {selectedWalletType === 'eth' ? (
+                  <>
+                    <p>支付使用以太坊Sepolia测试网（MetaMask）</p>
+                    <p className="mt-1">请确保您的钱包有足够的测试ETH余额</p>
+                  </>
+                ) : (
+                  <>
+                    <p>支付使用CKB钱包（{selectedCkbWallet === 'joyid' ? 'JoyID' : 'UTXO钱包'}）</p>
+                    <p className="mt-1">请确保您的钱包有足够的CKB余额</p>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         )}

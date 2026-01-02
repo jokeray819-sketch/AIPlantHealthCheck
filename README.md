@@ -30,6 +30,10 @@ AIPlantHealthCheck/
 - ✅ 植物健康检测（需要登录）
 - ✅ 密码加密存储（bcrypt）
 - ✅ RESTful API
+- ✅ **会员系统**（区块链支付）
+  - 免费用户：每月5次检测
+  - VIP会员：无限次检测
+  - 支持MetaMask钱包支付
 
 ## 快速开始
 
@@ -83,6 +87,10 @@ npm run dev
 - `POST /login` - 用户登录
 - `GET /users/me` - 获取当前用户信息
 
+### 会员相关
+- `GET /membership/status` - 获取会员状态和剩余检测次数
+- `POST /membership/purchase` - 购买会员（区块链支付）
+
 ### 植物检测
 - `POST /predict` - 上传植物图片进行健康检测（需要登录）
 
@@ -99,6 +107,26 @@ npm run dev
 - React - UI 框架
 - Vite - 构建工具
 - Axios - HTTP 客户端
+- TailwindCSS - CSS 框架
+- MetaMask - 区块链钱包集成
+
+## 会员功能
+
+本系统支持基于区块链的会员购买功能：
+
+### 会员权益
+- 🆓 **免费用户**：每月5次检测
+- 💎 **VIP会员**：无限次检测 + 优先AI模型 + 专属标识 + 优先客服
+
+### 套餐价格
+- 月度会员：0.001 ETH
+- 季度会员：0.0025 ETH（优惠）
+- 年度会员：0.008 ETH（最划算）
+
+### 支付方式
+使用MetaMask钱包通过以太坊区块链支付
+
+详细说明请参考：[会员功能文档](MEMBERSHIP_FEATURE.md)
 
 ## 开发说明
 
