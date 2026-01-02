@@ -7,7 +7,7 @@ const AI_ANALYSIS_DELAY = 1500; // AI分析页面显示时间（毫秒）
 //const BASE_URL = 'http://192.168.11.252:8000';
 const BASE_URL = 'http://127.0.0.1:8000';
 // 区块链支付配置（生产环境应从环境变量读取）
-const PAYMENT_RECIPIENT_ADDRESS = '0x742d35Cc6634C0532925a3b844Bc454e4438f44e'; // 收款地址
+const PAYMENT_RECIPIENT_ADDRESS = '0x84Ae0feD8a61E79920A9c01cb60D3c7da26Ea2A7'; // eth sepolia 收款地址
 
 function App() {
   // 页面导航状态
@@ -186,42 +186,44 @@ function App() {
   // 连接CKB钱包（使用CCC库）
   const connectCkbWallet = async () => {
     try {
-      let signer;
-      
-      if (selectedCkbWallet === 'joyid') {
-        // 使用CCC连接JoyID钱包
-        signer = new ccc.SignerCkbPublicKey(
-          new ccc.ClientPublicMainnet(),
-          ccc.SignerType.JoyID
-        );
-      } else if (selectedCkbWallet === 'utxo') {
-        // 使用CCC连接UTXO钱包（如CKB官方钱包、Neuron等）
-        signer = new ccc.SignerCkbPublicKey(
-          new ccc.ClientPublicMainnet(),
-          ccc.SignerType.CKB
-        );
-      } else {
-        throw new Error('不支持的CKB钱包类型');
+      // 检查 ccc 对象是否可用
+      if (!ccc || typeof ccc !== 'object') {
+        throw new Error('CKB连接器未正确加载，请刷新页面重试');
       }
+
+      // 提示：CKB钱包连接需要使用 @ckb-ccc/connector-react 的 Provider 和 useCcc hook
+      // 当前直接连接方式需要先获取公钥，这通常需要通过钱包连接器界面完成
+      const walletName = selectedCkbWallet === 'joyid' ? 'JoyID' : 'UTXO';
       
-      // 连接钱包
-      await signer.connect();
+      alert(
+        `CKB钱包连接功能需要钱包连接器界面支持。\n\n` +
+        `当前 ${walletName} 钱包连接功能暂时不可用。\n\n` +
+        `建议：\n` +
+        `1. 使用以太坊钱包进行支付（MetaMask）\n` +
+        `2. 或者集成 @ckb-ccc/connector-react 的 Provider 和 useCcc hook 来实现完整的CKB钱包连接功能\n\n` +
+        `如需使用CKB钱包，请联系开发人员集成钱包连接器界面。`
+      );
       
-      // 获取地址
-      const address = await signer.getAddressObjs();
-      if (address && address.length > 0) {
-        const addressStr = address[0].toString();
-        setWalletAddress(addressStr);
-        setWalletConnected(true);
-        // 保存signer以便后续使用
-        window.ckbSigner = signer;
-        return addressStr;
-      }
       return null;
+      
+      /* 
+      // 以下是正确的实现方式，需要使用 Provider 和 useCcc hook
+      // 需要在 App 组件外层包裹 ccc.Provider，并使用 useCcc hook
+      // 示例代码：
+      // 
+      // import { ccc, useCcc } from "@ckb-ccc/connector-react";
+      // 
+      // function WalletConnector() {
+      //   const { open, wallet, signerInfo, client } = useCcc();
+      //   // 使用 open() 打开钱包选择界面
+      //   // 使用 wallet 和 signerInfo 获取连接的钱包信息
+      // }
+      */
     } catch (error) {
       console.error('连接CKB钱包失败:', error);
       const walletName = selectedCkbWallet === 'joyid' ? 'JoyID' : 'UTXO';
-      alert(`连接${walletName}钱包失败，请重试\n` + (error.message || ''));
+      const errorMsg = error.message || error.toString() || '未知错误';
+      alert(`连接${walletName}钱包失败：${errorMsg}\n请确保已安装并解锁相应的钱包插件`);
       return null;
     }
   };
