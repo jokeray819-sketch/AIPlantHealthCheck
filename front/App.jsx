@@ -186,9 +186,22 @@ function App() {
   // 连接CKB钱包（使用CCC库）
   const connectCkbWallet = async () => {
     try {
-      // 检查 ccc 对象是否可用
-      if (!ccc || typeof ccc !== 'object') {
-        throw new Error('CKB连接器未正确加载，请刷新页面重试');
+      let signer;
+      
+      if (selectedCkbWallet === 'joyid') {
+        // 使用CCC连接JoyID钱包（测试网）
+        signer = new ccc.SignerCkbPublicKey(
+          new ccc.ClientPublicTestnet(),
+          ccc.SignerType.JoyID
+        );
+      } else if (selectedCkbWallet === 'utxo') {
+        // 使用CCC连接UTXO钱包（如CKB官方钱包、Neuron等）（测试网）
+        signer = new ccc.SignerCkbPublicKey(
+          new ccc.ClientPublicTestnet(),
+          ccc.SignerType.CKB
+        );
+      } else {
+        throw new Error('不支持的CKB钱包类型');
       }
 
       // 提示：CKB钱包连接需要使用 @ckb-ccc/connector-react 的 Provider 和 useCcc hook
@@ -1167,7 +1180,7 @@ function App() {
                       <i className="fas fa-coins"></i>
                     </div>
                     <h5 className="font-semibold text-dark text-sm">CKB</h5>
-                    <p className="text-xs text-medium mt-1">Nervos Network</p>
+                    <p className="text-xs text-medium mt-1">Testnet测试网</p>
                   </div>
                 </div>
               </div>
