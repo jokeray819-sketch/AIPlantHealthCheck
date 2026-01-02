@@ -11,9 +11,14 @@ export default defineConfig({
   },
   define: {
     'process.env': {},
+    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
     'process.platform': JSON.stringify('browser'),
     'process.version': JSON.stringify('v16.0.0'),
     global: 'globalThis',
+    // 禁用 Lit 开发模式警告（仅在开发模式下）
+    ...(process.env.NODE_ENV === 'production' ? {
+      'process.env.LIT_DEV_MODE': 'false',
+    } : {}),
   },
   resolve: {
     alias: {
@@ -25,6 +30,16 @@ export default defineConfig({
   },
   optimizeDeps: {
     include: ['process'],
+  },
+  build: {
+    // 生产构建时最小化输出
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: false, // 保留 console，但可以设置为 true 来移除所有 console
+        drop_debugger: true,
+      },
+    },
   },
 })
 
