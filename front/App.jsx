@@ -36,6 +36,7 @@ function App() {
   const [showMembershipModal, setShowMembershipModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState('monthly');
   const [selectedWalletType, setSelectedWalletType] = useState('eth'); // 'eth' or 'ckb'
+  const [selectedCkbWallet, setSelectedCkbWallet] = useState('joyid'); // 'joyid' or 'utxo'
   const [walletConnected, setWalletConnected] = useState(false);
   const [walletAddress, setWalletAddress] = useState('');
   const [purchaseLoading, setPurchaseLoading] = useState(false);
@@ -185,11 +186,23 @@ function App() {
   // 连接CKB钱包（使用CCC库）
   const connectCkbWallet = async () => {
     try {
-      // 使用CCC连接JoyID钱包
-      const signer = new ccc.SignerCkbPublicKey(
-        new ccc.ClientPublicMainnet(),
-        ccc.SignerType.JoyID
-      );
+      let signer;
+      
+      if (selectedCkbWallet === 'joyid') {
+        // 使用CCC连接JoyID钱包
+        signer = new ccc.SignerCkbPublicKey(
+          new ccc.ClientPublicMainnet(),
+          ccc.SignerType.JoyID
+        );
+      } else if (selectedCkbWallet === 'utxo') {
+        // 使用CCC连接UTXO钱包（如CKB官方钱包、Neuron等）
+        signer = new ccc.SignerCkbPublicKey(
+          new ccc.ClientPublicMainnet(),
+          ccc.SignerType.CKB
+        );
+      } else {
+        throw new Error('不支持的CKB钱包类型');
+      }
       
       // 连接钱包
       await signer.connect();
@@ -207,7 +220,8 @@ function App() {
       return null;
     } catch (error) {
       console.error('连接CKB钱包失败:', error);
-      alert('连接CKB钱包失败，请重试\n' + (error.message || ''));
+      const walletName = selectedCkbWallet === 'joyid' ? 'JoyID' : 'UTXO';
+      alert(`连接${walletName}钱包失败，请重试\n` + (error.message || ''));
       return null;
     }
   };
@@ -1156,6 +1170,43 @@ function App() {
                 </div>
               </div>
 
+              {/* CKB钱包类型选择 - 仅在选择CKB时显示 */}
+              {selectedWalletType === 'ckb' && (
+                <div className="mb-6">
+                  <h4 className="font-semibold text-dark mb-3">选择CKB钱包</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div 
+                      onClick={() => {
+                        setSelectedCkbWallet('joyid');
+                        setWalletConnected(false);
+                        setWalletAddress('');
+                      }}
+                      className={`border-2 rounded-lg p-3 cursor-pointer transition text-center ${selectedCkbWallet === 'joyid' ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-primary/50'}`}
+                    >
+                      <div className="text-xl mb-1">
+                        <i className="fas fa-smile"></i>
+                      </div>
+                      <h5 className="font-semibold text-dark text-xs">JoyID</h5>
+                      <p className="text-xs text-medium mt-1">Web钱包</p>
+                    </div>
+                    <div 
+                      onClick={() => {
+                        setSelectedCkbWallet('utxo');
+                        setWalletConnected(false);
+                        setWalletAddress('');
+                      }}
+                      className={`border-2 rounded-lg p-3 cursor-pointer transition text-center ${selectedCkbWallet === 'utxo' ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-primary/50'}`}
+                    >
+                      <div className="text-xl mb-1">
+                        <i className="fas fa-wallet"></i>
+                      </div>
+                      <h5 className="font-semibold text-dark text-xs">UTXO钱包</h5>
+                      <p className="text-xs text-medium mt-1">Neuron等</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* 套餐选择 */}
               <div className="mb-6">
                 <h4 className="font-semibold text-dark mb-3">选择套餐</h4>
@@ -1248,7 +1299,7 @@ function App() {
                   </>
                 ) : (
                   <>
-                    <p>支付使用CKB钱包（JoyID）</p>
+                    <p>支付使用CKB钱包（{selectedCkbWallet === 'joyid' ? 'JoyID' : 'UTXO钱包'}）</p>
                     <p className="mt-1">请确保您的钱包有足够的CKB余额</p>
                   </>
                 )}

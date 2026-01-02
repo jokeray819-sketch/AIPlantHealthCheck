@@ -6,7 +6,9 @@
 
 **支持的支付方式：**
 - ✅ **以太坊 (ETH)** - 通过MetaMask钱包，Sepolia测试网
-- ✅ **CKB** - 通过CCC库集成JoyID钱包，Nervos Network
+- ✅ **CKB** - 通过CCC库集成多种CKB钱包，Nervos Network
+  - **JoyID钱包** - Web端轻量级钱包
+  - **UTXO钱包** - Neuron等原生CKB钱包
 
 ## 功能特性
 
@@ -44,18 +46,24 @@
    - 以太坊使用Sepolia测试网
    - CKB使用Nervos Network主网
 
-4. **选择套餐**
+4. **选择CKB钱包类型（仅CKB支付）**
+   - **JoyID钱包** - 无需下载，Web端直接使用
+   - **UTXO钱包** - Neuron等原生CKB钱包
+
+5. **选择套餐**
    - 在模态框中选择月度、季度或年度会员套餐
    - 价格会根据选择的支付方式自动切换
 
-5. **连接钱包并支付**
+6. **连接钱包并支付**
    - 点击"连接钱包并支付"按钮
    - **以太坊用户**: 浏览器提示连接MetaMask，自动切换到Sepolia测试网
-   - **CKB用户**: 浏览器提示连接JoyID钱包
+   - **CKB用户**: 
+     - JoyID - 浏览器自动唤起JoyID认证页面
+     - UTXO钱包 - 连接Neuron等CKB原生钱包
    - 确认钱包连接后，会自动发起支付交易
    - 在钱包中确认交易
 
-6. **完成购买**
+7. **完成购买**
    - 交易确认后，后端自动升级用户为VIP
    - 会员状态即时更新
 
@@ -120,7 +128,7 @@ Content-Type: application/json
 - **React Hooks** - 使用useState管理会员状态和模态框
 - **MetaMask** - 使用window.ethereum API进行以太坊钱包连接和支付
 - **CCC (CKB Connector)** - 使用@ckb-ccc/connector-react进行CKB钱包集成
-- **JoyID** - 通过CCC库连接JoyID钱包
+- **多钱包支持** - 通过CCC库支持JoyID和UTXO钱包
 - **Axios** - 调用后端API确认支付
 
 ### 后端技术
@@ -130,10 +138,11 @@ Content-Type: application/json
 
 ### 区块链集成
 - **以太坊** - 使用以太坊Sepolia测试网进行支付，通过MetaMask
-- **CKB** - 使用CCC库进行UTXO交易构建和签名，通过JoyID钱包
+- **CKB** - 使用CCC库进行UTXO交易构建和签名
   - CCC (CKBers' Codebase): https://github.com/ckb-devrel/ccc
   - 使用`@ckb-ccc/connector-react`包
-  - SignerCkbPublicKey + JoyID类型连接
+  - **JoyID钱包**: SignerCkbPublicKey + SignerType.JoyID
+  - **UTXO钱包**: SignerCkbPublicKey + SignerType.CKB (Neuron等)
   - 自动完成UTXO输入选择和找零计算
 - 交易哈希存储在后端用于验证
 
@@ -168,7 +177,9 @@ Content-Type: application/json
 
 ### 前端
 - **以太坊支付**: 浏览器需安装MetaMask插件，钱包需有足够的测试ETH余额
-- **CKB支付**: 浏览器支持CCC库，自动唤起JoyID钱包，钱包需有足够的CKB余额
+- **CKB支付**: 
+  - **JoyID**: 浏览器支持，无需安装，自动唤起Web钱包
+  - **UTXO钱包**: 需安装Neuron或其他CKB原生钱包
 - **依赖包**: `@ckb-ccc/connector-react` (已包含在package.json中)
 
 ### 后端
@@ -183,11 +194,31 @@ Content-Type: application/json
 ```javascript
 import { ccc } from "@ckb-ccc/connector-react";
 
-const connectCkbWallet = async () => {
+const connectJoyID = async () => {
   // 创建JoyID类型的signer
   const signer = new ccc.SignerCkbPublicKey(
     new ccc.ClientPublicMainnet(),
     ccc.SignerType.JoyID
+  );
+  
+  // 连接钱包
+  await signer.connect();
+  
+  // 获取地址
+  const addresses = await signer.getAddressObjs();
+  return addresses[0].toString();
+};
+```
+
+### 连接UTXO钱包
+```javascript
+import { ccc } from "@ckb-ccc/connector-react";
+
+const connectUTXOWallet = async () => {
+  // 创建CKB（UTXO）类型的signer
+  const signer = new ccc.SignerCkbPublicKey(
+    new ccc.ClientPublicMainnet(),
+    ccc.SignerType.CKB  // 用于Neuron等原生钱包
   );
   
   // 连接钱包
