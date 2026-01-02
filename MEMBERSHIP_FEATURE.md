@@ -6,7 +6,7 @@
 
 **支持的支付方式：**
 - ✅ **以太坊 (ETH)** - 通过MetaMask钱包，Sepolia测试网
-- ✅ **CKB** - 通过JoyID钱包，Nervos Network
+- ✅ **CKB** - 通过CCC库集成JoyID钱包，Nervos Network
 
 ## 功能特性
 
@@ -118,7 +118,9 @@ Content-Type: application/json
 
 ### 前端技术
 - **React Hooks** - 使用useState管理会员状态和模态框
-- **Web3.js/MetaMask** - 使用window.ethereum API进行钱包连接和支付
+- **MetaMask** - 使用window.ethereum API进行以太坊钱包连接和支付
+- **CCC (CKB Connector)** - 使用@ckb-ccc/connector-react进行CKB钱包集成
+- **JoyID** - 通过CCC库连接JoyID钱包
 - **Axios** - 调用后端API确认支付
 
 ### 后端技术
@@ -127,8 +129,12 @@ Content-Type: application/json
 - **SQLAlchemy** - 数据库ORM
 
 ### 区块链集成
-- 使用以太坊区块链进行支付
-- 通过MetaMask钱包进行交易签名
+- **以太坊** - 使用以太坊Sepolia测试网进行支付，通过MetaMask
+- **CKB** - 使用CCC库进行UTXO交易构建和签名，通过JoyID钱包
+  - CCC (CKBers' Codebase): https://github.com/ckb-devrel/ccc
+  - 使用`@ckb-ccc/connector-react`包
+  - SignerCkbPublicKey + JoyID类型连接
+  - 自动完成UTXO输入选择和找零计算
 - 交易哈希存储在后端用于验证
 
 ## 安全说明
@@ -139,7 +145,8 @@ Content-Type: application/json
 
 ### 生产环境改进建议
 1. **验证交易真实性**
-   - 使用Web3.js或ethers.js验证交易是否存在于区块链
+   - **以太坊**: 使用Web3.js或ethers.js验证交易是否存在于Sepolia测试网
+   - **CKB**: 使用CCC的client查询链上交易状态
    - 验证交易接收地址是否正确
    - 验证交易金额是否符合套餐价格
 
@@ -148,7 +155,8 @@ Content-Type: application/json
    - 检查交易哈希是否已被使用
 
 3. **交易确认**
-   - 等待交易被区块链确认（建议至少6个确认）
+   - **以太坊**: 等待交易被区块链确认（建议至少6个确认）
+   - **CKB**: 等待交易上链并确认（建议至少24个确认）
    - 监听交易状态变化
 
 4. **错误处理**
@@ -159,14 +167,55 @@ Content-Type: application/json
 ## 环境要求
 
 ### 前端
-- 浏览器需安装MetaMask插件
-- 钱包需有足够的ETH余额（包括gas费）
+- **以太坊支付**: 浏览器需安装MetaMask插件，钱包需有足够的测试ETH余额
+- **CKB支付**: 浏览器支持CCC库，自动唤起JoyID钱包，钱包需有足够的CKB余额
+- **依赖包**: `@ckb-ccc/connector-react` (已包含在package.json中)
 
 ### 后端
 - Python 3.8+
 - FastAPI
 - SQLAlchemy
 - MySQL数据库
+
+## CCC集成代码示例
+
+### 连接JoyID钱包
+```javascript
+import { ccc } from "@ckb-ccc/connector-react";
+
+const connectCkbWallet = async () => {
+  // 创建JoyID类型的signer
+  const signer = new ccc.SignerCkbPublicKey(
+    new ccc.ClientPublicMainnet(),
+    ccc.SignerType.JoyID
+  );
+  
+  // 连接钱包
+  await signer.connect();
+  
+  // 获取地址
+  const addresses = await signer.getAddressObjs();
+  return addresses[0].toString();
+};
+```
+
+### 发送CKB交易
+```javascript
+// 构建交易
+const tx = ccc.Transaction.from({
+  outputs: [{
+    lock: await ccc.Address.fromString(recipientAddress, signer.client).getScript(),
+    capacity: ccc.fixedPointFrom("10000000000"), // 100 CKB in shannons
+  }],
+});
+
+// 自动完成输入和找零
+await tx.completeInputsByCapacity(signer);
+await tx.completeFeeBy(signer, 1000); // fee rate
+
+// 签名并发送
+const txHash = await signer.sendTransaction(tx);
+```
 
 ## 测试指南
 

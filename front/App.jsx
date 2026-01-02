@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import { ccc } from "@ckb-ccc/connector-react";
 
 // 常量定义
 const AI_ANALYSIS_DELAY = 1500; // AI分析页面显示时间（毫秒）
@@ -181,25 +182,32 @@ function App() {
     }
   };
 
-  // 连接CKB钱包
+  // 连接CKB钱包（使用CCC库）
   const connectCkbWallet = async () => {
-    // 检查是否安装了JoyID或其他CKB钱包
-    if (typeof window.joyid !== 'undefined') {
-      try {
-        const authData = await window.joyid.connect();
-        if (authData && authData.address) {
-          setWalletAddress(authData.address);
-          setWalletConnected(true);
-          return authData.address;
-        }
-        return null;
-      } catch (error) {
-        console.error('连接CKB钱包失败:', error);
-        alert('连接CKB钱包失败，请重试');
-        return null;
+    try {
+      // 使用CCC连接JoyID钱包
+      const signer = new ccc.SignerCkbPublicKey(
+        new ccc.ClientPublicMainnet(),
+        ccc.SignerType.JoyID
+      );
+      
+      // 连接钱包
+      await signer.connect();
+      
+      // 获取地址
+      const address = await signer.getAddressObjs();
+      if (address && address.length > 0) {
+        const addressStr = address[0].toString();
+        setWalletAddress(addressStr);
+        setWalletConnected(true);
+        // 保存signer以便后续使用
+        window.ckbSigner = signer;
+        return addressStr;
       }
-    } else {
-      alert('请先安装JoyID钱包插件！\n访问: https://joy.id');
+      return null;
+    } catch (error) {
+      console.error('连接CKB钱包失败:', error);
+      alert('连接CKB钱包失败，请重试\n' + (error.message || ''));
       return null;
     }
   };
@@ -256,22 +264,33 @@ function App() {
           params: [transactionParameters],
         });
       } else if (selectedWalletType === 'ckb') {
-        // CKB支付流程
+        // CKB支付流程（使用CCC库）
         const pricesInCKB = {
-          monthly: '100',      // 100 CKB
-          quarterly: '250',    // 250 CKB
-          yearly: '800'        // 800 CKB
+          monthly: '10000000000',      // 100 CKB (in shannons: 100 * 10^8)
+          quarterly: '25000000000',    // 250 CKB
+          yearly: '80000000000'        // 800 CKB
         };
 
-        // 使用JoyID发送CKB交易
-        if (typeof window.joyid !== 'undefined') {
-          const tx = await window.joyid.sendTransaction({
-            to: PAYMENT_RECIPIENT_ADDRESS,
-            amount: pricesInCKB[selectedPlan],
+        // 使用CCC发送CKB交易
+        if (window.ckbSigner) {
+          const signer = window.ckbSigner;
+          
+          // 构建交易
+          const tx = ccc.Transaction.from({
+            outputs: [{
+              lock: await ccc.Address.fromString(PAYMENT_RECIPIENT_ADDRESS, signer.client).getScript(),
+              capacity: ccc.fixedPointFrom(pricesInCKB[selectedPlan]),
+            }],
           });
-          txHash = tx.hash || tx.txHash;
+          
+          // 完成交易（添加输入和找零）
+          await tx.completeInputsByCapacity(signer);
+          await tx.completeFeeBy(signer, 1000); // 1000 shannons/byte fee rate
+          
+          // 签名并发送交易
+          const txHash = await signer.sendTransaction(tx);
         } else {
-          throw new Error('CKB钱包未安装');
+          throw new Error('请先连接CKB钱包');
         }
       }
 
