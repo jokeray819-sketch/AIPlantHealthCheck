@@ -75,6 +75,8 @@ function App() {
       setIsAuthenticated(true);
       // 获取会员状态
       await fetchMembershipStatus(token);
+      // 获取未读提醒数量
+      await fetchUnreadRemindersCount();
     } catch (error) {
       localStorage.removeItem('token');
       setIsAuthenticated(false);
@@ -995,7 +997,10 @@ function App() {
             <div className="w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center text-warning mb-1">
               <i className="fas fa-bell"></i>
               {unreadRemindersCount > 0 && (
-                <span className="absolute top-0 right-0 w-4 h-4 bg-danger rounded-full text-white text-xs flex items-center justify-center">
+                <span 
+                  className="absolute top-0 right-0 w-4 h-4 bg-danger rounded-full text-white text-xs flex items-center justify-center"
+                  aria-label={`${unreadRemindersCount} 条未读提醒`}
+                >
                   {unreadRemindersCount}
                 </span>
               )}

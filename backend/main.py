@@ -532,6 +532,8 @@ async def predict_plant_health(
         
         # 增加检测次数（仅在成功检测后）
         membership.monthly_detections += 1
+        
+        # 一起提交，确保原子性
         db.commit()
         
         return result
@@ -802,11 +804,12 @@ async def get_unread_reminders_count(
     db: Session = Depends(get_db)
 ):
     """获取未读提醒数量"""
+    current_time = datetime.now()
     count = db.query(Reminder).filter(
         Reminder.user_id == current_user.id,
         Reminder.is_read == False,
         Reminder.is_completed == False,
-        Reminder.scheduled_date <= datetime.now()
+        Reminder.scheduled_date <= current_time
     ).count()
     return {"unread_count": count}
 
