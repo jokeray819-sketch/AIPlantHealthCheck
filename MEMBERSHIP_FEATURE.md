@@ -6,9 +6,9 @@
 
 **支持的支付方式：**
 - ✅ **以太坊 (ETH)** - 通过MetaMask钱包，Sepolia测试网
-- ✅ **CKB** - 通过CCC库集成多种CKB钱包，Nervos Network
-  - **JoyID钱包** - Web端轻量级钱包
-  - **UTXO钱包** - Neuron等原生CKB钱包
+- ✅ **CKB** - 通过CCC库集成多种CKB钱包，CKB测试网
+  - **JoyID钱包** - Web端轻量级钱包（测试网）
+  - **UTXO钱包** - Neuron等原生CKB钱包（测试网）
 
 ## 功能特性
 
@@ -25,7 +25,7 @@
 2. **季度会员** - 0.0025 ETH / 90天（优惠）
 3. **年度会员** - 0.008 ETH / 365天（最划算）
 
-#### CKB支付 (Nervos Network)
+#### CKB支付 (CKB测试网)
 1. **月度会员** - 100 CKB / 30天
 2. **季度会员** - 250 CKB / 90天（优惠）
 3. **年度会员** - 800 CKB / 365天（最划算）
@@ -44,7 +44,7 @@
 3. **选择支付方式**
    - 选择以太坊(ETH)或CKB支付
    - 以太坊使用Sepolia测试网
-   - CKB使用Nervos Network主网
+   - CKB使用测试网（Testnet）
 
 4. **选择CKB钱包类型（仅CKB支付）**
    - **JoyID钱包** - 无需下载，Web端直接使用
@@ -138,9 +138,10 @@ Content-Type: application/json
 
 ### 区块链集成
 - **以太坊** - 使用以太坊Sepolia测试网进行支付，通过MetaMask
-- **CKB** - 使用CCC库进行UTXO交易构建和签名
+- **CKB** - 使用CCC库进行UTXO交易构建和签名（测试网）
   - CCC (CKBers' Codebase): https://github.com/ckb-devrel/ccc
   - 使用`@ckb-ccc/connector-react`包
+  - 连接到CKB测试网（ClientPublicTestnet）
   - **JoyID钱包**: SignerCkbPublicKey + SignerType.JoyID
   - **UTXO钱包**: SignerCkbPublicKey + SignerType.CKB (Neuron等)
   - 自动完成UTXO输入选择和找零计算
@@ -195,9 +196,9 @@ Content-Type: application/json
 import { ccc } from "@ckb-ccc/connector-react";
 
 const connectJoyID = async () => {
-  // 创建JoyID类型的signer
+  // 创建JoyID类型的signer（测试网）
   const signer = new ccc.SignerCkbPublicKey(
-    new ccc.ClientPublicMainnet(),
+    new ccc.ClientPublicTestnet(),
     ccc.SignerType.JoyID
   );
   
@@ -215,9 +216,9 @@ const connectJoyID = async () => {
 import { ccc } from "@ckb-ccc/connector-react";
 
 const connectUTXOWallet = async () => {
-  // 创建CKB（UTXO）类型的signer
+  // 创建CKB（UTXO）类型的signer（测试网）
   const signer = new ccc.SignerCkbPublicKey(
-    new ccc.ClientPublicMainnet(),
+    new ccc.ClientPublicTestnet(),
     ccc.SignerType.CKB  // 用于Neuron等原生钱包
   );
   

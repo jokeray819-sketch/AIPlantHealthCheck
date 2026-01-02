@@ -189,15 +189,15 @@ function App() {
       let signer;
       
       if (selectedCkbWallet === 'joyid') {
-        // 使用CCC连接JoyID钱包
+        // 使用CCC连接JoyID钱包（测试网）
         signer = new ccc.SignerCkbPublicKey(
-          new ccc.ClientPublicMainnet(),
+          new ccc.ClientPublicTestnet(),
           ccc.SignerType.JoyID
         );
       } else if (selectedCkbWallet === 'utxo') {
-        // 使用CCC连接UTXO钱包（如CKB官方钱包、Neuron等）
+        // 使用CCC连接UTXO钱包（如CKB官方钱包、Neuron等）（测试网）
         signer = new ccc.SignerCkbPublicKey(
-          new ccc.ClientPublicMainnet(),
+          new ccc.ClientPublicTestnet(),
           ccc.SignerType.CKB
         );
       } else {
@@ -1165,7 +1165,7 @@ function App() {
                       <i className="fas fa-coins"></i>
                     </div>
                     <h5 className="font-semibold text-dark text-sm">CKB</h5>
-                    <p className="text-xs text-medium mt-1">Nervos Network</p>
+                    <p className="text-xs text-medium mt-1">Testnet测试网</p>
                   </div>
                 </div>
               </div>
