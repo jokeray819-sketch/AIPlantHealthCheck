@@ -186,131 +186,41 @@ function App() {
   // 连接CKB钱包（使用CCC库）
   const connectCkbWallet = async () => {
     try {
-      // 检查 ccc 对象是否可用
-      if (!ccc || typeof ccc !== 'object') {
-        throw new Error('CKB连接器未正确加载，请刷新页面重试');
-      }
-
-      const client = new ccc.ClientPublicTestnet();
-      let wallet;
       let signer;
       
       if (selectedCkbWallet === 'joyid') {
         // 使用CCC连接JoyID钱包（测试网）
-        // 需要通过钱包连接获取 signer，而不是直接创建 SignerCkbPublicKey
-        if (ccc.JoyId && ccc.JoyId.Wallet) {
-          // 创建 JoyID 钱包实例
-          wallet = new ccc.JoyId.Wallet();
-          // 连接钱包
-          await wallet.connect();
-          // 获取 signers
-          const signers = await wallet.getSigners(client);
-          if (signers && signers.length > 0) {
-            signer = signers[0].signer;
-          } else {
-            throw new Error('无法从JoyID钱包获取签名器');
-          }
-        } else {
-          throw new Error('JoyID钱包不可用，请确保已安装JoyID钱包插件');
-        }
+        signer = new ccc.SignerCkbPublicKey(
+          new ccc.ClientPublicTestnet(),
+          ccc.SignerType.JoyID
+        );
       } else if (selectedCkbWallet === 'utxo') {
         // 使用CCC连接UTXO钱包（如CKB官方钱包、Neuron等）（测试网）
-        // 尝试通过 EIP6963 或全局钱包连接
-        if (ccc.Eip6963 && ccc.Eip6963.Wallet) {
-          // 使用 EIP6963 标准发现钱包
-          const wallets = await ccc.Eip6963.Wallet.discover();
-          if (wallets && wallets.length > 0) {
-            // 使用第一个可用的钱包
-            wallet = wallets[0];
-            await wallet.connect();
-            const signers = await wallet.getSigners(client);
-            if (signers && signers.length > 0) {
-              signer = signers[0].signer;
-            } else {
-              throw new Error('无法从钱包获取签名器');
-            }
-          } else {
-            throw new Error('未找到可用的UTXO钱包，请确保已安装并解锁钱包插件');
-          }
-        } else if (ccc.UtxoGlobal && ccc.UtxoGlobal.Wallet) {
-          // 尝试使用全局 UTXO 钱包
-          wallet = new ccc.UtxoGlobal.Wallet();
-          await wallet.connect();
-          const signers = await wallet.getSigners(client);
-          if (signers && signers.length > 0) {
-            signer = signers[0].signer;
-          } else {
-            throw new Error('无法从钱包获取签名器');
-          }
-        } else {
-          throw new Error('UTXO钱包不可用，请确保已安装钱包插件');
-        }
+        signer = new ccc.SignerCkbPublicKey(
+          new ccc.ClientPublicTestnet(),
+          ccc.SignerType.CKB
+        );
       } else {
         throw new Error('不支持的CKB钱包类型');
       }
       
-      // 检查 signer 是否创建成功
-      if (!signer) {
-        throw new Error('签名器创建失败，请确保已安装并解锁相应的钱包插件');
-      }
+      // 连接钱包
+      await signer.connect();
       
       // 获取地址
-      let addressStr = null;
-      
-      // 优先尝试 getAddress 方法
-      if (typeof signer.getAddress === 'function') {
-        try {
-          const address = await signer.getAddress();
-          if (address) {
-            addressStr = typeof address === 'string' ? address : address.toString();
-          }
-        } catch (e) {
-          console.warn('getAddress 方法失败，尝试其他方法:', e);
-        }
-      }
-      
-      // 如果 getAddress 失败，尝试 getAddressObjs
-      if (!addressStr && typeof signer.getAddressObjs === 'function') {
-        try {
-          const addressObjs = await signer.getAddressObjs();
-          if (addressObjs != null) {
-            if (Array.isArray(addressObjs) && addressObjs.length > 0) {
-              addressStr = addressObjs[0].toString();
-            } else if (typeof addressObjs[Symbol.iterator] === 'function') {
-              const addressArray = Array.from(addressObjs);
-              if (addressArray.length > 0) {
-                addressStr = addressArray[0].toString();
-              }
-            } else if (typeof addressObjs.toString === 'function') {
-              addressStr = addressObjs.toString();
-            }
-          }
-        } catch (e) {
-          console.warn('getAddressObjs 方法失败:', e);
-        }
-      }
-      
-      // 最后尝试直接访问 address 属性
-      if (!addressStr && signer.address) {
-        addressStr = typeof signer.address === 'string' ? signer.address : signer.address.toString();
-      }
-      
-      if (addressStr) {
+      const address = await signer.getAddressObjs();
+      if (address && address.length > 0) {
+        const addressStr = address[0].toString();
         setWalletAddress(addressStr);
         setWalletConnected(true);
-        // 保存signer和wallet以便后续使用
+        // 保存signer以便后续使用
         window.ckbSigner = signer;
-        window.ckbWallet = wallet;
-        window.ckbClient = client;
         return addressStr;
-      } else {
-        throw new Error('无法获取钱包地址');
       }
     } catch (error) {
       console.error('连接CKB钱包失败:', error);
       const walletName = selectedCkbWallet === 'joyid' ? 'JoyID' : 'UTXO';
-      const errorMsg = error.message || error.toString() || '未知错误';
-      alert(`连接${walletName}钱包失败：${errorMsg}\n请确保已安装并解锁相应的钱包插件`);
+      alert(`连接${walletName}钱包失败，请重试\n` + (error.message || ''));
       return null;
     }
   };
