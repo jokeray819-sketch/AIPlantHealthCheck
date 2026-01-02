@@ -302,7 +302,7 @@ function App() {
           await tx.completeFeeBy(signer, 1000); // 1000 shannons/byte fee rate
           
           // 签名并发送交易
-          const txHash = await signer.sendTransaction(tx);
+          txHash = await signer.sendTransaction(tx);
         } else {
           throw new Error('请先连接CKB钱包');
         }
@@ -1104,7 +1104,7 @@ function App() {
         {/* 会员购买模态框 */}
         {showMembershipModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowMembershipModal(false)}>
-            <div className="bg-white rounded-lg w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-2xl font-bold text-dark">开通会员</h3>
                 <button onClick={() => setShowMembershipModal(false)} className="text-medium" aria-label="关闭">
