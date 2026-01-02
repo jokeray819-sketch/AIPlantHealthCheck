@@ -58,6 +58,7 @@ class MembershipPurchaseRequest(BaseModel):
     transaction_hash: str  # 区块链交易哈希
     wallet_address: str  # 钱包地址
     plan: str = Field(..., description="会员套餐类型: monthly, quarterly, yearly")
+    wallet_type: str = Field(default="eth", description="钱包类型: eth, ckb")
 
 # 会员购买响应
 class MembershipPurchaseResponse(BaseModel):

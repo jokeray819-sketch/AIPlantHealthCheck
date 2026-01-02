@@ -34,6 +34,7 @@ function App() {
   const [membershipStatus, setMembershipStatus] = useState(null);
   const [showMembershipModal, setShowMembershipModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState('monthly');
+  const [selectedWalletType, setSelectedWalletType] = useState('eth'); // 'eth' or 'ckb'
   const [walletConnected, setWalletConnected] = useState(false);
   const [walletAddress, setWalletAddress] = useState('');
   const [purchaseLoading, setPurchaseLoading] = useState(false);
@@ -133,23 +134,84 @@ function App() {
     setSelectedFile(null);
   };
 
-  // 连接钱包
-  const connectWallet = async () => {
+  // 连接以太坊钱包
+  const connectEthWallet = async () => {
     if (typeof window.ethereum !== 'undefined') {
       try {
+        // 请求切换到Sepolia测试网
+        try {
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: '0xaa36a7' }], // Sepolia testnet chainId
+          });
+        } catch (switchError) {
+          // 如果Sepolia网络不存在，添加它
+          if (switchError.code === 4902) {
+            await window.ethereum.request({
+              method: 'wallet_addEthereumChain',
+              params: [{
+                chainId: '0xaa36a7',
+                chainName: 'Sepolia Test Network',
+                nativeCurrency: {
+                  name: 'SepoliaETH',
+                  symbol: 'ETH',
+                  decimals: 18
+                },
+                rpcUrls: ['https://rpc.sepolia.org'],
+                blockExplorerUrls: ['https://sepolia.etherscan.io']
+              }]
+            });
+          } else {
+            throw switchError;
+          }
+        }
+
         const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
         setWalletAddress(accounts[0]);
         setWalletConnected(true);
         return accounts[0];
       } catch (error) {
-        console.error('连接钱包失败:', error);
-        alert('连接钱包失败，请确保已安装MetaMask并已解锁');
+        console.error('连接以太坊钱包失败:', error);
+        alert('连接以太坊钱包失败，请确保已安装MetaMask并已解锁');
         return null;
       }
     } else {
       alert('请先安装MetaMask钱包插件！');
       return null;
     }
+  };
+
+  // 连接CKB钱包
+  const connectCkbWallet = async () => {
+    // 检查是否安装了JoyID或其他CKB钱包
+    if (typeof window.joyid !== 'undefined') {
+      try {
+        const authData = await window.joyid.connect();
+        if (authData && authData.address) {
+          setWalletAddress(authData.address);
+          setWalletConnected(true);
+          return authData.address;
+        }
+        return null;
+      } catch (error) {
+        console.error('连接CKB钱包失败:', error);
+        alert('连接CKB钱包失败，请重试');
+        return null;
+      }
+    } else {
+      alert('请先安装JoyID钱包插件！\n访问: https://joy.id');
+      return null;
+    }
+  };
+
+  // 连接钱包（根据选择的类型）
+  const connectWallet = async () => {
+    if (selectedWalletType === 'eth') {
+      return await connectEthWallet();
+    } else if (selectedWalletType === 'ckb') {
+      return await connectCkbWallet();
+    }
+    return null;
   };
 
   // 购买会员
@@ -173,24 +235,45 @@ function App() {
         }
       }
 
-      // 获取价格（根据套餐，以Wei为单位避免浮点运算）
-      const pricesInWei = {
-        monthly: '1000000000000000',    // 0.001 ETH
-        quarterly: '2500000000000000',  // 0.0025 ETH
-        yearly: '8000000000000000'      // 0.008 ETH
-      };
+      let txHash;
 
-      // 发送交易
-      const transactionParameters = {
-        to: PAYMENT_RECIPIENT_ADDRESS, // 使用配置的收款地址
-        from: address,
-        value: '0x' + BigInt(pricesInWei[selectedPlan]).toString(16), // 转换为十六进制
-      };
+      if (selectedWalletType === 'eth') {
+        // 以太坊支付流程
+        const pricesInWei = {
+          monthly: '1000000000000000',    // 0.001 ETH
+          quarterly: '2500000000000000',  // 0.0025 ETH
+          yearly: '8000000000000000'      // 0.008 ETH
+        };
 
-      const txHash = await window.ethereum.request({
-        method: 'eth_sendTransaction',
-        params: [transactionParameters],
-      });
+        const transactionParameters = {
+          to: PAYMENT_RECIPIENT_ADDRESS,
+          from: address,
+          value: '0x' + BigInt(pricesInWei[selectedPlan]).toString(16),
+        };
+
+        txHash = await window.ethereum.request({
+          method: 'eth_sendTransaction',
+          params: [transactionParameters],
+        });
+      } else if (selectedWalletType === 'ckb') {
+        // CKB支付流程
+        const pricesInCKB = {
+          monthly: '100',      // 100 CKB
+          quarterly: '250',    // 250 CKB
+          yearly: '800'        // 800 CKB
+        };
+
+        // 使用JoyID发送CKB交易
+        if (typeof window.joyid !== 'undefined') {
+          const tx = await window.joyid.sendTransaction({
+            to: PAYMENT_RECIPIENT_ADDRESS,
+            amount: pricesInCKB[selectedPlan],
+          });
+          txHash = tx.hash || tx.txHash;
+        } else {
+          throw new Error('CKB钱包未安装');
+        }
+      }
 
       console.log('交易哈希:', txHash);
 
@@ -199,7 +282,8 @@ function App() {
       const response = await axios.post(`${BASE_URL}/membership/purchase`, {
         transaction_hash: txHash,
         wallet_address: address,
-        plan: selectedPlan
+        plan: selectedPlan,
+        wallet_type: selectedWalletType
       }, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -215,7 +299,7 @@ function App() {
       if (error.code === 4001) {
         alert('您取消了交易');
       } else {
-        alert(error.response?.data?.detail || '购买失败，请重试');
+        alert(error.response?.data?.detail || error.message || '购买失败，请重试');
       }
     } finally {
       setPurchaseLoading(false);
@@ -1018,6 +1102,41 @@ function App() {
                 </div>
               </div>
 
+              {/* 支付方式选择 */}
+              <div className="mb-6">
+                <h4 className="font-semibold text-dark mb-3">选择支付方式</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div 
+                    onClick={() => {
+                      setSelectedWalletType('eth');
+                      setWalletConnected(false);
+                      setWalletAddress('');
+                    }}
+                    className={`border-2 rounded-lg p-4 cursor-pointer transition text-center ${selectedWalletType === 'eth' ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-primary/50'}`}
+                  >
+                    <div className="text-2xl mb-2">
+                      <i className="fab fa-ethereum"></i>
+                    </div>
+                    <h5 className="font-semibold text-dark text-sm">以太坊</h5>
+                    <p className="text-xs text-medium mt-1">Sepolia测试网</p>
+                  </div>
+                  <div 
+                    onClick={() => {
+                      setSelectedWalletType('ckb');
+                      setWalletConnected(false);
+                      setWalletAddress('');
+                    }}
+                    className={`border-2 rounded-lg p-4 cursor-pointer transition text-center ${selectedWalletType === 'ckb' ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-primary/50'}`}
+                  >
+                    <div className="text-2xl mb-2">
+                      <i className="fas fa-coins"></i>
+                    </div>
+                    <h5 className="font-semibold text-dark text-sm">CKB</h5>
+                    <p className="text-xs text-medium mt-1">Nervos Network</p>
+                  </div>
+                </div>
+              </div>
+
               {/* 套餐选择 */}
               <div className="mb-6">
                 <h4 className="font-semibold text-dark mb-3">选择套餐</h4>
@@ -1032,7 +1151,9 @@ function App() {
                         <p className="text-sm text-medium">30天无限检测</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-2xl font-bold text-primary">0.001 ETH</p>
+                        <p className="text-2xl font-bold text-primary">
+                          {selectedWalletType === 'eth' ? '0.001 ETH' : '100 CKB'}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -1048,8 +1169,12 @@ function App() {
                         <p className="text-sm text-medium">90天无限检测</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-2xl font-bold text-primary">0.0025 ETH</p>
-                        <p className="text-xs text-medium line-through">0.003 ETH</p>
+                        <p className="text-2xl font-bold text-primary">
+                          {selectedWalletType === 'eth' ? '0.0025 ETH' : '250 CKB'}
+                        </p>
+                        <p className="text-xs text-medium line-through">
+                          {selectedWalletType === 'eth' ? '0.003 ETH' : '300 CKB'}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -1065,8 +1190,12 @@ function App() {
                         <p className="text-sm text-medium">365天无限检测</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-2xl font-bold text-primary">0.008 ETH</p>
-                        <p className="text-xs text-medium line-through">0.012 ETH</p>
+                        <p className="text-2xl font-bold text-primary">
+                          {selectedWalletType === 'eth' ? '0.008 ETH' : '800 CKB'}
+                        </p>
+                        <p className="text-xs text-medium line-through">
+                          {selectedWalletType === 'eth' ? '0.012 ETH' : '1200 CKB'}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -1093,8 +1222,17 @@ function App() {
 
               {/* 提示信息 */}
               <div className="mt-4 text-xs text-medium text-center">
-                <p>支付使用以太坊区块链钱包（MetaMask）</p>
-                <p className="mt-1">请确保您的钱包有足够的ETH余额</p>
+                {selectedWalletType === 'eth' ? (
+                  <>
+                    <p>支付使用以太坊Sepolia测试网（MetaMask）</p>
+                    <p className="mt-1">请确保您的钱包有足够的测试ETH余额</p>
+                  </>
+                ) : (
+                  <>
+                    <p>支付使用CKB钱包（JoyID）</p>
+                    <p className="mt-1">请确保您的钱包有足够的CKB余额</p>
+                  </>
+                )}
               </div>
             </div>
           </div>

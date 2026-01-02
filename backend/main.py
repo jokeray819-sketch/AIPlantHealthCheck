@@ -167,15 +167,32 @@ async def purchase_membership(
     """购买会员（通过区块链钱包支付）"""
     import re
     
-    # 验证交易哈希格式（以太坊交易哈希：0x + 64位十六进制）
-    tx_hash_pattern = r'^0x[a-fA-F0-9]{64}$'
-    if not re.match(tx_hash_pattern, purchase_data.transaction_hash):
-        raise HTTPException(status_code=400, detail="无效的交易哈希格式")
+    # 验证钱包类型
+    valid_wallet_types = ["eth", "ckb"]
+    if purchase_data.wallet_type not in valid_wallet_types:
+        raise HTTPException(status_code=400, detail="无效的钱包类型")
     
-    # 验证钱包地址格式（以太坊地址：0x + 40位十六进制）
-    wallet_pattern = r'^0x[a-fA-F0-9]{40}$'
-    if not re.match(wallet_pattern, purchase_data.wallet_address):
-        raise HTTPException(status_code=400, detail="无效的钱包地址格式")
+    # 根据钱包类型验证交易哈希和地址格式
+    if purchase_data.wallet_type == "eth":
+        # 以太坊交易哈希：0x + 64位十六进制
+        tx_hash_pattern = r'^0x[a-fA-F0-9]{64}$'
+        if not re.match(tx_hash_pattern, purchase_data.transaction_hash):
+            raise HTTPException(status_code=400, detail="无效的以太坊交易哈希格式")
+        
+        # 以太坊地址：0x + 40位十六进制
+        wallet_pattern = r'^0x[a-fA-F0-9]{40}$'
+        if not re.match(wallet_pattern, purchase_data.wallet_address):
+            raise HTTPException(status_code=400, detail="无效的以太坊钱包地址格式")
+    elif purchase_data.wallet_type == "ckb":
+        # CKB交易哈希：0x + 64位十六进制（与以太坊相同格式）
+        tx_hash_pattern = r'^0x[a-fA-F0-9]{64}$'
+        if not re.match(tx_hash_pattern, purchase_data.transaction_hash):
+            raise HTTPException(status_code=400, detail="无效的CKB交易哈希格式")
+        
+        # CKB地址：通常以ckb开头，较长的地址
+        # 这里简化验证，实际应使用CKB SDK验证
+        if not purchase_data.wallet_address or len(purchase_data.wallet_address) < 20:
+            raise HTTPException(status_code=400, detail="无效的CKB钱包地址格式")
     
     # 验证会员套餐类型
     valid_plans = ["monthly", "quarterly", "yearly"]
@@ -195,6 +212,9 @@ async def purchase_membership(
     # 3. 验证交易是否已被确认
     # 4. 防止重复使用同一交易哈希
     # 
+    # 对于ETH: 验证Sepolia测试网交易
+    # 对于CKB: 验证Nervos Network交易
+    # 
     # 为了演示，我们直接将用户升级为VIP
     
     try:
@@ -206,9 +226,10 @@ async def purchase_membership(
         db.commit()
         db.refresh(membership)
         
+        wallet_type_name = "以太坊" if purchase_data.wallet_type == "eth" else "CKB"
         return MembershipPurchaseResponse(
             success=True,
-            message=f"恭喜！您已成功开通{plan_names[purchase_data.plan]}会员",
+            message=f"恭喜！您已通过{wallet_type_name}钱包成功开通{plan_names[purchase_data.plan]}会员",
             is_vip=True
         )
     except Exception as e:
