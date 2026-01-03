@@ -985,6 +985,7 @@ async def create_reminder(
         reminder_type=reminder.reminder_type,
         title=reminder.title,
         message=reminder.message,
+        reminder_reason=reminder.reminder_reason,
         scheduled_date=reminder.scheduled_date
     )
     

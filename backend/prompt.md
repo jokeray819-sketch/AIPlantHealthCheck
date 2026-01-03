@@ -101,7 +101,7 @@
       "增加光照时间，促进光合作用"
     ],
     "need_product": false,
-    "plant_introduction": "多年生草本植物，花形奇特，似仙鹤独立，喜阳光充足环境。",
+    "plant_introduction": "常见室内观叶植物，喜温暖湿润环境，耐阴性强。",
     "reminder_type": "浇水提醒",
     "reminder_reason": "绿萝喜湿润环境，定期浇水可保持土壤湿度，促进植株健康生长。",
     "reminder_days": 5
