@@ -44,6 +44,9 @@ class DetectionResult(BaseModel):
     handling_suggestions: list[str]  # 处理建议（数组）
     need_product: bool  # 是否需要产品
     plant_introduction: str  # 植物简介
+    reminder_type: str = None  # 提醒类型：浇水提醒/复查提醒/无
+    reminder_reason: str = None  # 提醒原因说明
+    reminder_days: int = None  # 建议多少天后提醒
 
 # 会员状态响应
 class MembershipResponse(BaseModel):
@@ -135,6 +138,7 @@ class ReminderCreate(BaseModel):
     reminder_type: str = Field(..., description="提醒类型: watering, re_examination")
     title: str = Field(..., min_length=1, max_length=200)
     message: Optional[str] = None
+    reminder_reason: Optional[str] = None  # 提醒原因说明
     scheduled_date: datetime
 
 # 提醒更新请求
@@ -150,6 +154,7 @@ class ReminderResponse(BaseModel):
     reminder_type: str
     title: str
     message: Optional[str]
+    reminder_reason: Optional[str]  # 提醒原因说明
     scheduled_date: datetime
     is_completed: bool
     is_read: bool

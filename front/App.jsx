@@ -1243,9 +1243,18 @@ function App() {
                     <i className={`fas ${reminder.reminder_type === 'watering' ? 'fa-tint text-blue-500' : 'fa-camera text-green-500'}`}></i>
                     <h3 className="font-semibold text-dark">{reminder.title}</h3>
                   </div>
+                  {reminder.reminder_reason && (
+                    <div className="bg-blue-50 p-2 rounded mb-2">
+                      <p className="text-xs text-secondary">
+                        <i className="fas fa-info-circle mr-1"></i>
+                        <strong>提醒原因：</strong>{reminder.reminder_reason}
+                      </p>
+                    </div>
+                  )}
                   <p className="text-sm text-medium mb-2">{reminder.message}</p>
                   <p className="text-xs text-medium">
-                    {new Date(reminder.scheduled_date).toLocaleString('zh-CN')}
+                    <i className="far fa-calendar mr-1"></i>
+                    计划时间: {new Date(reminder.scheduled_date).toLocaleString('zh-CN')}
                   </p>
                 </div>
                 <button 
