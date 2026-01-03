@@ -1012,14 +1012,14 @@ function App() {
               setShowAuthModal(true); 
             }
           }} className="flex flex-col items-center relative">
-            <div className="w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center text-warning mb-1">
+            <div className="w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center text-warning mb-1 relative">
               <i className="fas fa-bell"></i>
               {unreadRemindersCount > 0 && (
                 <span 
-                  className="absolute top-0 right-0 w-4 h-4 bg-danger rounded-full text-white text-xs flex items-center justify-center"
+                  className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center"
                   aria-label={`${unreadRemindersCount} 条未读提醒`}
                 >
-                  {unreadRemindersCount}
+                  <i className="fas fa-exclamation text-white text-xs"></i>
                 </span>
               )}
             </div>
