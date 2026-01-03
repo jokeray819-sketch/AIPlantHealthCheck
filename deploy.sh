@@ -47,7 +47,16 @@ if [ ! -f .env ]; then
     read -p "是否现在编辑 .env 文件? (y/n) " -n 1 -r
     echo ""
     if [[ $REPLY =~ ^[Yy]$ ]]; then
-        ${EDITOR:-nano} .env
+        # Try to find an available editor
+        if command -v nano &> /dev/null; then
+            nano .env
+        elif command -v vi &> /dev/null; then
+            vi .env
+        elif command -v vim &> /dev/null; then
+            vim .env
+        else
+            echo "未找到可用的编辑器，请手动编辑 .env 文件"
+        fi
     else
         echo "⚠️  警告: 使用默认配置部署存在安全风险！"
         echo "请在生产环境中务必修改密码和密钥！"

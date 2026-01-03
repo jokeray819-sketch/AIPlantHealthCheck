@@ -7,7 +7,7 @@ services:
     container_name: plant-health-mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-your_password}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root_password_change_me}
       MYSQL_DATABASE: ${DB_NAME:-plant_health_db}
       MYSQL_USER: ${DB_USER:-plant_user}
       MYSQL_PASSWORD: ${DB_PASSWORD:-your_password}

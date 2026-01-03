@@ -82,6 +82,7 @@ DB_HOST=mysql                           # 数据库主机（Docker 内部使用�
 DB_PORT=3306                            # 数据库端口
 DB_USER=plant_user                      # 数据库用户名
 DB_PASSWORD=your_password_here          # 数据库密码（必须修改）
+DB_ROOT_PASSWORD=root_password_change_me # 数据库 root 密码（必须修改，应与 DB_PASSWORD 不同）
 DB_NAME=plant_health_db                 # 数据库名称
 
 # JWT 配置
@@ -90,7 +91,8 @@ ALGORITHM=HS256                         # 加密算法
 ACCESS_TOKEN_EXPIRE_MINUTES=30          # Token 过期时间（分钟）
 ```
 
-**重要**: 生产环境必须修改 `DB_PASSWORD` 和 `SECRET_KEY`！
+**重要**: 生产环境必须修改 `DB_PASSWORD`、`DB_ROOT_PASSWORD` 和 `SECRET_KEY`！
+**安全提示**: `DB_ROOT_PASSWORD` 应该比 `DB_PASSWORD` 更强，两者不应相同。
 
 ### 常用命令
 
@@ -206,8 +208,8 @@ docker run -d \
 
 ### 1. 安全配置
 
-- **修改默认密码**: 确保修改 `DB_PASSWORD` 和 `SECRET_KEY`
-- **使用环境变量**: 不要在代码中硬编码敏感信息
+1. **修改默认密码**: 确保修改 `DB_PASSWORD`、`DB_ROOT_PASSWORD` 和 `SECRET_KEY`，且 root 密码应更强
+2. **使用环境变量**: 不要在代码中硬编码敏感信息
 - **启用 HTTPS**: 在前端 Nginx 配置中添加 SSL 证书
 - **限制端口访问**: 不要暴露数据库端口到公网
 

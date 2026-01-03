@@ -57,8 +57,9 @@ nano .env  # 或使用其他编辑器
 
 **必须修改的配置**：
 ```env
-DB_PASSWORD=your_strong_password_here    # 改为强密码
-SECRET_KEY=your-secret-key-change-this   # 改为随机字符串
+DB_PASSWORD=your_strong_password_here         # 改为强密码
+DB_ROOT_PASSWORD=even_stronger_password       # 改为更强的密码（不同于 DB_PASSWORD）
+SECRET_KEY=your-secret-key-change-this        # 改为随机字符串
 ```
 
 ### 2. 启动服务
