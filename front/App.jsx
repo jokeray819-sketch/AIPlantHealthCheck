@@ -9,6 +9,10 @@ const BASE_URL = 'http://127.0.0.1:8000';
 // 区块链支付配置（生产环境应从环境变量读取）
 const PAYMENT_RECIPIENT_ADDRESS = '0x84Ae0feD8a61E79920A9c01cb60D3c7da26Ea2A7'; // eth sepolia 收款地址
 
+// 支付汇率常量（测试环境简化汇率，生产环境应从实时API获取）
+const CNY_TO_WEI_RATE = 1000000000000000; // 1 CNY ≈ 0.001 ETH (简化测试汇率)
+const CNY_TO_CKB_SHANNONS_RATE = 100000000; // 1 CNY ≈ 1 CKB in shannons (简化测试汇率)
+
 function App() {
   // 页面导航状态
   const [currentPage, setCurrentPage] = useState('detection'); // 'detection', 'shop', 'profile'
@@ -44,6 +48,7 @@ function App() {
   const [showOrdersPage, setShowOrdersPage] = useState(false);
   const [orders, setOrders] = useState([]);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [recentlyAddedProducts, setRecentlyAddedProducts] = useState(new Set());
   
   // 认证相关状态
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -219,6 +224,16 @@ function App() {
       }
       return [...prevCart, { ...product, quantity: 1 }];
     });
+    
+    // Show "added" feedback
+    setRecentlyAddedProducts(prev => new Set(prev).add(product.id));
+    setTimeout(() => {
+      setRecentlyAddedProducts(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(product.id);
+        return newSet;
+      });
+    }, 1000);
   };
 
   // 更新购物车商品数量
@@ -247,7 +262,7 @@ function App() {
   // 计算购物车总价
   const getCartTotal = () => {
     return cart.reduce((total, item) => {
-      const price = parseFloat(item.price.replace('¥', ''));
+      const price = parseFloat(item.price.replace('¥', '').trim()) || 0;
       return total + (price * item.quantity);
     }, 0);
   };
@@ -294,7 +309,7 @@ function App() {
 
       if (selectedWalletType === 'eth') {
         // 以太坊支付流程
-        const priceInWei = BigInt(Math.floor(total * 1000000000000000)).toString(); // Convert CNY to Wei (simplified)
+        const priceInWei = BigInt(Math.floor(total * CNY_TO_WEI_RATE)).toString();
         
         const transactionParameters = {
           to: PAYMENT_RECIPIENT_ADDRESS,
@@ -308,7 +323,7 @@ function App() {
         });
       } else if (selectedWalletType === 'ckb') {
         // CKB支付流程
-        const priceInCKB = BigInt(Math.floor(total * 100000000)).toString(); // Convert CNY to CKB shannons (simplified)
+        const priceInCKB = BigInt(Math.floor(total * CNY_TO_CKB_SHANNONS_RATE)).toString();
 
         if (window.ckbSigner) {
           const signer = window.ckbSigner;
@@ -1095,22 +1110,24 @@ function App() {
                     )}
                   </div>
                   <button 
-                    onClick={() => {
-                      addToCart(product);
-                      // 显示提示
-                      const btn = event.target.closest('button');
-                      const originalText = btn.innerHTML;
-                      btn.innerHTML = '<i class="fas fa-check mr-1"></i><span>已添加</span>';
-                      btn.classList.add('bg-green-500', 'text-white');
-                      setTimeout(() => {
-                        btn.innerHTML = originalText;
-                        btn.classList.remove('bg-green-500', 'text-white');
-                      }, 1000);
-                    }}
-                    className="w-full bg-primary/10 text-primary text-sm py-1.5 rounded flex items-center justify-center transition"
+                    onClick={() => addToCart(product)}
+                    className={`w-full text-sm py-1.5 rounded flex items-center justify-center transition ${
+                      recentlyAddedProducts.has(product.id)
+                        ? 'bg-green-500 text-white'
+                        : 'bg-primary/10 text-primary'
+                    }`}
                   >
-                    <i className="fas fa-shopping-cart mr-1"></i>
-                    <span>加入购物车</span>
+                    {recentlyAddedProducts.has(product.id) ? (
+                      <>
+                        <i className="fas fa-check mr-1"></i>
+                        <span>已添加</span>
+                      </>
+                    ) : (
+                      <>
+                        <i className="fas fa-shopping-cart mr-1"></i>
+                        <span>加入购物车</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </div>

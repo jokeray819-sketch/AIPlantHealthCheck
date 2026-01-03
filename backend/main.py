@@ -1118,8 +1118,16 @@ def create_order(
     db: Session = Depends(get_db)
 ):
     """创建新订单并处理支付"""
-    # 生成订单号
-    order_number = f"ORD{datetime.now().strftime('%Y%m%d%H%M%S')}{random.randint(1000, 9999)}"
+    # 生成唯一订单号（使用UUID保证唯一性）
+    order_number = f"ORD{datetime.now().strftime('%Y%m%d')}{uuid.uuid4().hex[:8].upper()}"
+    
+    # 验证订单号唯一性（额外保险）
+    max_retries = 3
+    for _ in range(max_retries):
+        existing = db.query(Order).filter(Order.order_number == order_number).first()
+        if not existing:
+            break
+        order_number = f"ORD{datetime.now().strftime('%Y%m%d')}{uuid.uuid4().hex[:8].upper()}"
     
     # 计算总金额
     total_amount = 0.0
@@ -1131,8 +1139,12 @@ def create_order(
             raise HTTPException(status_code=404, detail=f"产品ID {item['product_id']} 不存在")
         
         # 解析价格（去除¥符号并转换为浮点数）
-        price_str = product.price.replace('¥', '')
-        price = float(price_str)
+        price_str = product.price.replace('¥', '').strip()
+        try:
+            price = float(price_str)
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"产品 {product.name} 的价格格式无效")
+        
         quantity = item.get("quantity", 1)
         total_amount += price * quantity
         
@@ -1142,7 +1154,7 @@ def create_order(
             "price": product.price
         })
     
-    # 创建订单
+    # 创建订单（注：生产环境应验证区块链交易）
     order = Order(
         user_id=current_user.id,
         order_number=order_number,
@@ -1150,7 +1162,7 @@ def create_order(
         payment_method=order_data.payment_method,
         transaction_hash=order_data.transaction_hash,
         wallet_address=order_data.wallet_address,
-        status='paid'  # 假设区块链交易已确认
+        status='paid'  # TODO: 在生产环境应验证区块链交易后再设置为paid
     )
     db.add(order)
     db.commit()
