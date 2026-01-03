@@ -15,12 +15,25 @@ function App() {
   const [showCapturePage, setShowCapturePage] = useState(false); // 显示拍照/上传页面
   const [showAnalyzingPage, setShowAnalyzingPage] = useState(false); // 显示AI分析中页面
   const [showResultPage, setShowResultPage] = useState(false); // 显示诊断结果页面
+  const [showHistoryPage, setShowHistoryPage] = useState(false); // 显示诊断历史页面
+  const [showMyPlantsPage, setShowMyPlantsPage] = useState(false); // 显示我的植物页面
+  const [showRemindersPage, setShowRemindersPage] = useState(false); // 显示提醒消息页面
+  const [showPlantDetailPage, setShowPlantDetailPage] = useState(false); // 显示植物详情页面
+  const [showAddPlantModal, setShowAddPlantModal] = useState(false); // 显示添加植物模态框
   
   // 植物识别相关状态
   const [selectedFile, setSelectedFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [result, setResult] = useState(null);
+  const [currentDiagnosisId, setCurrentDiagnosisId] = useState(null); // 当前诊断ID
   const [loading, setLoading] = useState(false);
+  
+  // 新功能相关状态
+  const [diagnosisHistory, setDiagnosisHistory] = useState([]);
+  const [myPlants, setMyPlants] = useState([]);
+  const [reminders, setReminders] = useState([]);
+  const [selectedPlant, setSelectedPlant] = useState(null);
+  const [unreadRemindersCount, setUnreadRemindersCount] = useState(0);
   
   // 认证相关状态
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -63,6 +76,8 @@ function App() {
       setIsAuthenticated(true);
       // 获取会员状态
       await fetchMembershipStatus(token);
+      // 获取未读提醒数量
+      await fetchUnreadRemindersCount();
     } catch (error) {
       localStorage.removeItem('token');
       setIsAuthenticated(false);
@@ -79,6 +94,66 @@ function App() {
     } catch (error) {
       console.error('获取会员状态失败:', error);
       setMembershipStatus(null);
+    }
+  };
+
+  // 获取诊断历史
+  const fetchDiagnosisHistory = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    
+    try {
+      const response = await axios.get(`${BASE_URL}/diagnosis-history`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      setDiagnosisHistory(response.data);
+    } catch (error) {
+      console.error('获取诊断历史失败:', error);
+    }
+  };
+
+  // 获取我的植物
+  const fetchMyPlants = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    
+    try {
+      const response = await axios.get(`${BASE_URL}/my-plants`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      setMyPlants(response.data);
+    } catch (error) {
+      console.error('获取我的植物失败:', error);
+    }
+  };
+
+  // 获取提醒消息
+  const fetchReminders = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    
+    try {
+      const response = await axios.get(`${BASE_URL}/reminders?is_completed=false`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      setReminders(response.data);
+    } catch (error) {
+      console.error('获取提醒消息失败:', error);
+    }
+  };
+
+  // 获取未读提醒数量
+  const fetchUnreadRemindersCount = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    
+    try {
+      const response = await axios.get(`${BASE_URL}/reminders/unread-count`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      setUnreadRemindersCount(response.data.unread_count);
+    } catch (error) {
+      console.error('获取未读提醒数量失败:', error);
     }
   };
 
@@ -134,6 +209,10 @@ function App() {
     setResult(null);
     setPreview(null);
     setSelectedFile(null);
+    setDiagnosisHistory([]);
+    setMyPlants([]);
+    setReminders([]);
+    setUnreadRemindersCount(0);
   };
 
   // 连接以太坊钱包
@@ -370,6 +449,7 @@ function App() {
         }
       });
       setResult(response.data);
+      setCurrentDiagnosisId(response.data.diagnosis_id); // 保存诊断ID
       
       // 刷新会员状态以更新剩余检测次数
       await fetchMembershipStatus(token);
@@ -678,8 +758,35 @@ function App() {
           {/* 操作按钮 */}
           <div className="flex gap-3 mb-3">
             <button 
-              onClick={() => {
-                alert('保存功能开发中...');
+              onClick={async () => {
+                const token = localStorage.getItem('token');
+                if (!token) {
+                  alert('请先登录');
+                  return;
+                }
+                
+                const nickname = prompt('给你的植物起个昵称（可选）：');
+                
+                try {
+                  await axios.post(`${BASE_URL}/my-plants`, {
+                    plant_name: result.plant_name,
+                    scientific_name: result.scientific_name,
+                    nickname: nickname || null,
+                    status: result.status,
+                    diagnosis_id: currentDiagnosisId,  // 关联诊断历史
+                    notes: result.problem_judgment
+                  }, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                  });
+                  alert('已保存到我的植物！');
+                } catch (error) {
+                  if (error.response?.status === 403) {
+                    alert(error.response?.data?.detail || '此功能仅限VIP用户使用');
+                    setShowMembershipModal(true);
+                  } else {
+                    alert('保存失败: ' + (error.response?.data?.detail || error.message));
+                  }
+                }
               }}
               className="flex-1 bg-white text-primary border border-primary py-3 rounded-lg font-medium btn-shadow transition hover:bg-primary/5"
             >
@@ -857,21 +964,64 @@ function App() {
       <div className="bg-white rounded-lg p-4 mb-6 card-shadow">
         <h3 className="font-semibold text-dark mb-3">快捷入口</h3>
         <div className="grid grid-cols-4 gap-3 text-center">
-          <button className="flex flex-col items-center">
+          <button onClick={() => { 
+            if (isAuthenticated) {
+              if (membershipStatus?.is_vip) {
+                fetchMyPlants(); 
+                setShowMyPlantsPage(true);
+              } else {
+                alert('此功能仅限VIP用户使用，请升级为VIP获得完整功能访问权限。');
+                setShowMembershipModal(true);
+              }
+            } else { 
+              alert('请先登录'); 
+              setShowAuthModal(true); 
+            }
+          }} className="flex flex-col items-center">
             <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center text-success mb-1">
               <i className="fas fa-leaf"></i>
             </div>
             <span className="text-xs text-dark">我的植物</span>
           </button>
-          <button className="flex flex-col items-center">
+          <button onClick={() => { 
+            if (isAuthenticated) {
+              if (membershipStatus?.is_vip) {
+                fetchDiagnosisHistory(); 
+                setShowHistoryPage(true);
+              } else {
+                alert('此功能仅限VIP用户使用，请升级为VIP获得完整功能访问权限。');
+                setShowMembershipModal(true);
+              }
+            } else { 
+              alert('请先登录'); 
+              setShowAuthModal(true); 
+            }
+          }} className="flex flex-col items-center">
             <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-secondary mb-1">
               <i className="fas fa-history"></i>
             </div>
             <span className="text-xs text-dark">诊断历史</span>
           </button>
-          <button className="flex flex-col items-center">
+          <button onClick={() => { 
+            if (isAuthenticated) { 
+              fetchReminders(); 
+              fetchUnreadRemindersCount();
+              setShowRemindersPage(true); 
+            } else { 
+              alert('请先登录'); 
+              setShowAuthModal(true); 
+            }
+          }} className="flex flex-col items-center relative">
             <div className="w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center text-warning mb-1">
               <i className="fas fa-bell"></i>
+              {unreadRemindersCount > 0 && (
+                <span 
+                  className="absolute top-0 right-0 w-4 h-4 bg-danger rounded-full text-white text-xs flex items-center justify-center"
+                  aria-label={`${unreadRemindersCount} 条未读提醒`}
+                >
+                  {unreadRemindersCount}
+                </span>
+              )}
             </div>
             <span className="text-xs text-dark">提醒消息</span>
           </button>
@@ -914,7 +1064,20 @@ function App() {
       {/* 功能列表 */}
       <div className="bg-white rounded-lg overflow-hidden mb-6 card-shadow">
         <div className="divide-y divide-gray-100">
-          <button className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50">
+          <button onClick={() => { 
+            if (isAuthenticated) {
+              if (membershipStatus?.is_vip) {
+                fetchDiagnosisHistory(); 
+                setShowHistoryPage(true);
+              } else {
+                alert('此功能仅限VIP用户使用，请升级为VIP获得完整功能访问权限。');
+                setShowMembershipModal(true);
+              }
+            } else { 
+              alert('请先登录'); 
+              setShowAuthModal(true); 
+            }
+          }} className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50">
             <div className="flex items-center">
               <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-secondary mr-3">
                 <i className="fas fa-history"></i>
@@ -946,13 +1109,315 @@ function App() {
     </div>
   );
 
+  // 渲染诊断历史页面
+  const renderHistoryPage = () => (
+    <div className="p-4 pb-20">
+      <div className="flex justify-between items-center mb-4">
+        <button onClick={() => setShowHistoryPage(false)} className="text-medium p-2">
+          <i className="fas fa-arrow-left"></i>
+        </button>
+        <h2 className="text-xl font-bold text-dark">诊断历史</h2>
+        <div className="w-8"></div>
+      </div>
+      
+      {diagnosisHistory.length === 0 ? (
+        <div className="text-center py-20">
+          <i className="fas fa-history text-6xl text-gray-300 mb-4"></i>
+          <p className="text-medium">暂无诊断历史</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {diagnosisHistory.map((history) => (
+            <div key={history.id} className="bg-white rounded-lg p-4 card-shadow">
+              <div className="flex justify-between items-start mb-2">
+                <div>
+                  <h3 className="font-semibold text-dark">{history.plant_name}</h3>
+                  <p className="text-xs text-medium italic">{history.scientific_name}</p>
+                </div>
+                <span className={`text-xs px-2 py-1 rounded-full ${
+                  history.status === '健康' ? 'bg-green-100 text-green-700' : 'bg-warning/20 text-warning'
+                }`}>
+                  {history.status}
+                </span>
+              </div>
+              <p className="text-sm text-dark mb-2">{history.problem_judgment}</p>
+              <div className="flex justify-between items-center text-xs text-medium">
+                <span>{new Date(history.created_at).toLocaleString('zh-CN')}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  // 渲染我的植物页面
+  const renderMyPlantsPage = () => (
+    <div className="p-4 pb-20">
+      <div className="flex justify-between items-center mb-4">
+        <button onClick={() => setShowMyPlantsPage(false)} className="text-medium p-2">
+          <i className="fas fa-arrow-left"></i>
+        </button>
+        <h2 className="text-xl font-bold text-dark">我的植物</h2>
+        <button onClick={() => setShowAddPlantModal(true)} className="text-primary p-2">
+          <i className="fas fa-plus"></i>
+        </button>
+      </div>
+      
+      {myPlants.length === 0 ? (
+        <div className="text-center py-20">
+          <i className="fas fa-leaf text-6xl text-gray-300 mb-4"></i>
+          <p className="text-medium mb-4">还没有添加植物</p>
+          <button 
+            onClick={() => setShowAddPlantModal(true)}
+            className="bg-primary text-white px-6 py-2 rounded-lg btn-shadow"
+          >
+            添加第一株植物
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-4">
+          {myPlants.map((plant) => (
+            <div 
+              key={plant.id} 
+              onClick={() => {
+                setSelectedPlant(plant);
+                setShowMyPlantsPage(false);
+                setShowPlantDetailPage(true);
+              }}
+              className="bg-white rounded-lg overflow-hidden card-shadow cursor-pointer"
+            >
+              <div className="w-full h-32 bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center">
+                {plant.image_url ? (
+                  <img 
+                    src={`${BASE_URL}${plant.image_url}`} 
+                    alt={plant.plant_name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <i className="fas fa-leaf text-white text-4xl"></i>
+                )}
+              </div>
+              <div className="p-3">
+                <h3 className="font-semibold text-dark text-sm mb-1">
+                  {plant.nickname || plant.plant_name}
+                </h3>
+                <p className="text-xs text-medium mb-2">{plant.plant_name}</p>
+                {plant.next_watering_date && (
+                  <div className="text-xs text-secondary">
+                    <i className="fas fa-tint mr-1"></i>
+                    下次浇水: {new Date(plant.next_watering_date).toLocaleDateString('zh-CN')}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  // 渲染提醒消息页面
+  const renderRemindersPage = () => (
+    <div className="p-4 pb-20">
+      <div className="flex justify-between items-center mb-4">
+        <button onClick={() => setShowRemindersPage(false)} className="text-medium p-2">
+          <i className="fas fa-arrow-left"></i>
+        </button>
+        <h2 className="text-xl font-bold text-dark">提醒消息</h2>
+        <div className="w-8"></div>
+      </div>
+      
+      {reminders.length === 0 ? (
+        <div className="text-center py-20">
+          <i className="fas fa-bell text-6xl text-gray-300 mb-4"></i>
+          <p className="text-medium">暂无提醒消息</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {reminders.map((reminder) => (
+            <div key={reminder.id} className="bg-white rounded-lg p-4 card-shadow">
+              <div className="flex items-start justify-between mb-2">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <i className={`fas ${reminder.reminder_type === 'watering' ? 'fa-tint text-blue-500' : 'fa-camera text-green-500'}`}></i>
+                    <h3 className="font-semibold text-dark">{reminder.title}</h3>
+                  </div>
+                  <p className="text-sm text-medium mb-2">{reminder.message}</p>
+                  <p className="text-xs text-medium">
+                    {new Date(reminder.scheduled_date).toLocaleString('zh-CN')}
+                  </p>
+                </div>
+                <button 
+                  onClick={async () => {
+                    const token = localStorage.getItem('token');
+                    try {
+                      await axios.put(`${BASE_URL}/reminders/${reminder.id}`, 
+                        { is_completed: true, is_read: true },
+                        { headers: { 'Authorization': `Bearer ${token}` } }
+                      );
+                      fetchReminders();
+                      fetchUnreadRemindersCount();
+                    } catch (error) {
+                      console.error('标记提醒失败:', error);
+                    }
+                  }}
+                  className="text-green-500 p-2"
+                >
+                  <i className="fas fa-check"></i>
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  // 渲染植物详情页面
+  const renderPlantDetailPage = () => {
+    if (!selectedPlant) return null;
+    
+    return (
+      <div className="p-4 pb-20">
+        <div className="flex justify-between items-center mb-4">
+          <button onClick={() => {
+            setShowPlantDetailPage(false);
+            setShowMyPlantsPage(true);
+            setSelectedPlant(null);
+          }} className="text-medium p-2">
+            <i className="fas fa-arrow-left"></i>
+          </button>
+          <h2 className="text-xl font-bold text-dark">植物详情</h2>
+          <div className="w-8"></div>
+        </div>
+        
+        <div className="bg-white rounded-lg p-4 mb-4 card-shadow">
+          <div className="w-full h-48 bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center rounded-lg mb-4 overflow-hidden">
+            {selectedPlant.image_url ? (
+              <img 
+                src={`${BASE_URL}${selectedPlant.image_url}`} 
+                alt={selectedPlant.plant_name}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <i className="fas fa-leaf text-white text-6xl"></i>
+            )}
+          </div>
+          
+          <h3 className="text-lg font-bold text-dark mb-1">
+            {selectedPlant.nickname || selectedPlant.plant_name}
+          </h3>
+          <p className="text-sm text-medium mb-4">{selectedPlant.plant_name}</p>
+          
+          {selectedPlant.notes && (
+            <div className="bg-blue-50 p-3 rounded-lg mb-4">
+              <p className="text-sm text-dark">{selectedPlant.notes}</p>
+            </div>
+          )}
+          
+          {selectedPlant.watering_frequency && (
+            <div className="mb-4">
+              <p className="text-sm text-medium mb-1">浇水频率</p>
+              <p className="text-sm text-dark">每 {selectedPlant.watering_frequency} 天浇水一次</p>
+            </div>
+          )}
+          
+          {selectedPlant.last_watered && (
+            <div className="mb-4">
+              <p className="text-sm text-medium mb-1">上次浇水</p>
+              <p className="text-sm text-dark">{new Date(selectedPlant.last_watered).toLocaleDateString('zh-CN')}</p>
+            </div>
+          )}
+          
+          {selectedPlant.next_watering_date && (
+            <div className="mb-4">
+              <p className="text-sm text-medium mb-1">下次浇水</p>
+              <p className="text-sm text-dark">{new Date(selectedPlant.next_watering_date).toLocaleDateString('zh-CN')}</p>
+            </div>
+          )}
+        </div>
+        
+        <div className="space-y-3">
+          <button 
+            onClick={async () => {
+              const token = localStorage.getItem('token');
+              try {
+                await axios.post(`${BASE_URL}/my-plants/${selectedPlant.id}/water`, {}, {
+                  headers: { 'Authorization': `Bearer ${token}` }
+                });
+                alert('浇水记录已更新');
+                fetchMyPlants();
+                setShowPlantDetailPage(false);
+                setShowMyPlantsPage(true);
+                setSelectedPlant(null);
+              } catch (error) {
+                alert('更新失败: ' + (error.response?.data?.detail || error.message));
+              }
+            }}
+            className="w-full bg-blue-500 text-white py-3 rounded-lg btn-shadow"
+          >
+            <i className="fas fa-tint mr-2"></i>
+            记录浇水
+          </button>
+          
+          <button 
+            onClick={async () => {
+              const token = localStorage.getItem('token');
+              try {
+                await axios.post(`${BASE_URL}/reminders/create-reexamination/${selectedPlant.id}?days=7`, {}, {
+                  headers: { 'Authorization': `Bearer ${token}` }
+                });
+                alert('已创建7天后的复查提醒');
+              } catch (error) {
+                alert('创建提醒失败: ' + (error.response?.data?.detail || error.message));
+              }
+            }}
+            className="w-full bg-green-500 text-white py-3 rounded-lg btn-shadow"
+          >
+            <i className="fas fa-camera mr-2"></i>
+            创建复查提醒
+          </button>
+          
+          <button 
+            onClick={async () => {
+              if (confirm('确定要删除这株植物吗？')) {
+                const token = localStorage.getItem('token');
+                try {
+                  await axios.delete(`${BASE_URL}/my-plants/${selectedPlant.id}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                  });
+                  alert('植物已删除');
+                  fetchMyPlants();
+                  setShowPlantDetailPage(false);
+                  setShowMyPlantsPage(true);
+                  setSelectedPlant(null);
+                } catch (error) {
+                  alert('删除失败: ' + (error.response?.data?.detail || error.message));
+                }
+              }
+            }}
+            className="w-full bg-red-500 text-white py-3 rounded-lg btn-shadow"
+          >
+            <i className="fas fa-trash mr-2"></i>
+            删除植物
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center">
       <div className="w-full max-w-md bg-white min-h-screen relative">
         {/* 页面内容 */}
         {showAnalyzingPage ? renderAnalyzingPage() : 
          showResultPage ? renderResultPage() :
-         showCapturePage ? renderCapturePage() : (
+         showCapturePage ? renderCapturePage() :
+         showHistoryPage ? renderHistoryPage() :
+         showMyPlantsPage ? renderMyPlantsPage() :
+         showRemindersPage ? renderRemindersPage() :
+         showPlantDetailPage ? renderPlantDetailPage() : (
           <>
             {currentPage === 'detection' && renderDetectionPage()}
             {currentPage === 'shop' && renderShopPage()}
@@ -961,7 +1426,7 @@ function App() {
         )}
 
         {/* 底部导航栏 */}
-        {!showCapturePage && !showAnalyzingPage && !showResultPage && (
+        {!showCapturePage && !showAnalyzingPage && !showResultPage && !showHistoryPage && !showMyPlantsPage && !showRemindersPage && !showPlantDetailPage && (
           <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white border-t border-gray-200 flex justify-around py-2 z-10">
           <button
             className={`flex flex-col items-center justify-center px-4 py-1 ${currentPage === 'detection' ? 'text-primary' : 'text-medium'}`}

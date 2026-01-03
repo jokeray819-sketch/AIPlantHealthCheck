@@ -49,3 +49,11 @@ yarn-error.log*
 dist/
 build/
 .vite/
+
+# Uploaded images
+backend/images/*.jpg
+backend/images/*.jpeg
+backend/images/*.png
+backend/images/*.gif
+!backend/images/.gitkeep
+
