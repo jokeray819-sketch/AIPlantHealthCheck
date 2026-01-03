@@ -37,6 +37,12 @@ UNLIMITED_DETECTIONS = -1  # VIP用户无限检测次数（使用-1表示）
 DEFAULT_SEVERITY_VALUE = 30  # 默认严重程度值
 HOST = os.getenv("HOST", "0.0.0.0")
 
+# 提醒类型映射
+REMINDER_TYPE_MAPPING = {
+    "浇水提醒": "watering",
+    "复查提醒": "re_examination"
+}
+
 # 图片存储配置
 IMAGES_DIR = Path(__file__).parent / "images"
 IMAGES_DIR.mkdir(exist_ok=True)
@@ -421,7 +427,10 @@ def mock_ai_inference(image: Image.Image):
                 "增加光照时间，促进光合作用"
             ],
             "need_product": False,
-            "plant_introduction": "常见室内观叶植物，喜温暖湿润环境，耐阴性强。"
+            "plant_introduction": "常见室内观叶植物，喜温暖湿润环境，耐阴性强。",
+            "reminder_type": "浇水提醒",
+            "reminder_reason": "绿萝喜湿润环境，定期浇水可保持土壤湿度，促进植株健康生长。",
+            "reminder_days": 5
         },
         # 结果2: 缺水
         {
@@ -437,7 +446,10 @@ def mock_ai_inference(image: Image.Image):
                 "后续保持土壤微湿，不干不浇"
             ],
             "need_product": False,
-            "plant_introduction": "热带观叶植物，耐旱性较强，喜温暖湿润环境。"
+            "plant_introduction": "热带观叶植物，耐旱性较强，喜温暖湿润环境。",
+            "reminder_type": "浇水提醒",
+            "reminder_reason": "发财树补水后需要定期浇水，避免再次干旱导致叶片萎蔫。",
+            "reminder_days": 7
         },
         # 结果3: 虫害
         {
@@ -453,7 +465,10 @@ def mock_ai_inference(image: Image.Image):
                 "放置通风处减少虫害复发"
             ],
             "need_product": True,
-            "plant_introduction": "常见观赏花卉，花期长，喜阳光充足环境。"
+            "plant_introduction": "常见观赏花卉，花期长，喜阳光充足环境。",
+            "reminder_type": "复查提醒",
+            "reminder_reason": "喷施杀虫剂后需要观察效果，确认虫害是否得到控制，避免虫害复发或扩散。",
+            "reminder_days": 5
         },
         # 结果4: 缺肥
         {
@@ -469,7 +484,10 @@ def mock_ai_inference(image: Image.Image):
                 "施肥后充分浇水，避免烧根"
             ],
             "need_product": True,
-            "plant_introduction": "多年生常绿草本植物，适应性强，易养护。"
+            "plant_introduction": "多年生常绿草本植物，适应性强，易养护。",
+            "reminder_type": "复查提醒",
+            "reminder_reason": "施肥后需要观察植株生长情况，确认营养是否充足，叶片是否恢复正常。",
+            "reminder_days": 10
         },
         # 结果5: 光照不当
         {
@@ -485,7 +503,10 @@ def mock_ai_inference(image: Image.Image):
                 "定期旋转花盆，使植物均匀受光"
             ],
             "need_product": False,
-            "plant_introduction": "热带观叶植物，叶片宽大，喜高温多湿环境。"
+            "plant_introduction": "热带观叶植物，叶片宽大，喜高温多湿环境。",
+            "reminder_type": "复查提醒",
+            "reminder_reason": "光照调整后需要观察叶片恢复情况，确认新位置光照是否合适，避免持续灼伤。",
+            "reminder_days": 7
         },
         # 结果6: 病害
         {
@@ -501,7 +522,10 @@ def mock_ai_inference(image: Image.Image):
                 "改善通风条件，减少湿度"
             ],
             "need_product": True,
-            "plant_introduction": "大型观叶植物，叶片独特，适合室内摆放。"
+            "plant_introduction": "大型观叶植物，叶片独特，适合室内摆放。",
+            "reminder_type": "复查提醒",
+            "reminder_reason": "使用杀菌剂治疗后需要观察病害是否得到控制，防止病菌扩散到其他叶片。",
+            "reminder_days": 5
         }
     ]
     return random.choice(results)
@@ -573,7 +597,10 @@ async def predict_plant_health(
             severityValue=prediction.get("severityValue", DEFAULT_SEVERITY_VALUE),
             handling_suggestions=prediction.get("handling_suggestions", ["请重新检测"]),
             need_product=prediction.get("need_product", False),
-            plant_introduction=prediction.get("plant_introduction", "无植物信息")
+            plant_introduction=prediction.get("plant_introduction", "无植物信息"),
+            reminder_type=prediction.get("reminder_type", "无"),
+            reminder_reason=prediction.get("reminder_reason", ""),
+            reminder_days=prediction.get("reminder_days", 0)
         )
         
         # 保存诊断历史
@@ -601,6 +628,31 @@ async def predict_plant_health(
         
         # 添加诊断ID到结果中
         result.diagnosis_id = diagnosis_history.id
+        
+        # 自动创建提醒（如果AI建议需要提醒）
+        if result.reminder_type and result.reminder_type != "无" and result.reminder_days > 0:
+            # 计算提醒日期
+            scheduled_date = datetime.now() + timedelta(days=result.reminder_days)
+            
+            # 确定提醒类型映射
+            reminder_type_en = REMINDER_TYPE_MAPPING.get(result.reminder_type, "re_examination")
+            
+            # 创建提醒标题和消息
+            title = f"{result.reminder_type}: {result.plant_name}"
+            message = result.reminder_reason or f"建议{result.reminder_days}天后{'浇水' if reminder_type_en == 'watering' else '复查'}"
+            
+            # 创建提醒
+            auto_reminder = Reminder(
+                user_id=current_user.id,
+                plant_id=None,  # 暂时不关联具体植物，用户可以后续添加到"我的植物"
+                reminder_type=reminder_type_en,
+                title=title,
+                message=message,
+                reminder_reason=result.reminder_reason,
+                scheduled_date=scheduled_date
+            )
+            db.add(auto_reminder)
+            db.commit()
         
         return result
     except Exception as e:
@@ -753,8 +805,9 @@ async def create_my_plant(
             user_id=current_user.id,
             plant_id=new_plant.id,
             reminder_type="watering",
-            title=f"浇水提醒：{plant.nickname or plant.plant_name}",
+            title=f"浇水提醒: {plant.nickname or plant.plant_name}",
             message=f"该给 {plant.nickname or plant.plant_name} 浇水了！",
+            reminder_reason=f"根据{plant.watering_frequency}天的浇水周期，需要定期补充水分以保持土壤湿度。",
             scheduled_date=datetime.combine(next_watering_date, datetime.min.time())
         )
         db.add(watering_reminder)
@@ -798,15 +851,17 @@ async def update_my_plant(
         
         if existing_reminder:
             existing_reminder.scheduled_date = datetime.combine(plant.next_watering_date, datetime.min.time())
-            existing_reminder.title = f"浇水提醒：{plant.nickname or plant.plant_name}"
+            existing_reminder.title = f"浇水提醒: {plant.nickname or plant.plant_name}"
             existing_reminder.message = f"该给 {plant.nickname or plant.plant_name} 浇水了！"
+            existing_reminder.reminder_reason = f"根据{plant.watering_frequency}天的浇水周期，需要定期补充水分以保持土壤湿度。"
         else:
             new_reminder = Reminder(
                 user_id=current_user.id,
                 plant_id=plant_id,
                 reminder_type="watering",
-                title=f"浇水提醒：{plant.nickname or plant.plant_name}",
+                title=f"浇水提醒: {plant.nickname or plant.plant_name}",
                 message=f"该给 {plant.nickname or plant.plant_name} 浇水了！",
+                reminder_reason=f"根据{plant.watering_frequency}天的浇水周期，需要定期补充水分以保持土壤湿度。",
                 scheduled_date=datetime.combine(plant.next_watering_date, datetime.min.time())
             )
             db.add(new_reminder)
@@ -870,8 +925,9 @@ async def water_plant(
             user_id=current_user.id,
             plant_id=plant_id,
             reminder_type="watering",
-            title=f"浇水提醒：{plant.nickname or plant.plant_name}",
+            title=f"浇水提醒: {plant.nickname or plant.plant_name}",
             message=f"该给 {plant.nickname or plant.plant_name} 浇水了！",
+            reminder_reason=f"根据{plant.watering_frequency}天的浇水周期，需要定期补充水分以保持土壤湿度。",
             scheduled_date=datetime.combine(plant.next_watering_date, datetime.min.time())
         )
         db.add(new_reminder)
@@ -906,13 +962,15 @@ async def get_unread_reminders_count(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """获取未读提醒数量"""
+    """获取未读提醒数量（提醒规则：执行日期在3天内的提醒都会显示）"""
     current_time = datetime.now()
+    three_days_later = current_time + timedelta(days=3)
+    
     count = db.query(Reminder).filter(
         Reminder.user_id == current_user.id,
         Reminder.is_read == False,
         Reminder.is_completed == False,
-        Reminder.scheduled_date <= current_time
+        Reminder.scheduled_date <= three_days_later  # 执行日期在3天内的都要提醒
     ).count()
     return {"unread_count": count}
 
@@ -929,6 +987,7 @@ async def create_reminder(
         reminder_type=reminder.reminder_type,
         title=reminder.title,
         message=reminder.message,
+        reminder_reason=reminder.reminder_reason,
         scheduled_date=reminder.scheduled_date
     )
     
@@ -1002,8 +1061,9 @@ async def create_reexamination_reminder(
         user_id=current_user.id,
         plant_id=plant_id,
         reminder_type="re_examination",
-        title=f"复查提醒：{plant.nickname or plant.plant_name}",
+        title=f"复查提醒: {plant.nickname or plant.plant_name}",
         message=f"建议再次拍照检查 {plant.nickname or plant.plant_name} 的健康状况",
+        reminder_reason=f"经过{days}天的养护，需要检查植物恢复情况，确认问题是否得到解决。",
         scheduled_date=scheduled_date
     )
     

@@ -66,6 +66,13 @@ function App() {
     }
   }, []);
 
+  // 当用户在"我的"页面时，刷新未读提醒数量
+  useEffect(() => {
+    if (isAuthenticated && currentPage === 'profile') {
+      fetchUnreadRemindersCount();
+    }
+  }, [isAuthenticated, currentPage]);
+
   // 获取当前用户信息
   const fetchCurrentUser = async (token) => {
     try {
@@ -1012,11 +1019,11 @@ function App() {
               setShowAuthModal(true); 
             }
           }} className="flex flex-col items-center relative">
-            <div className="w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center text-warning mb-1">
+            <div className="w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center text-warning mb-1 relative">
               <i className="fas fa-bell"></i>
               {unreadRemindersCount > 0 && (
                 <span 
-                  className="absolute top-0 right-0 w-4 h-4 bg-danger rounded-full text-white text-xs flex items-center justify-center"
+                  className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center"
                   aria-label={`${unreadRemindersCount} 条未读提醒`}
                 >
                   {unreadRemindersCount}
@@ -1243,9 +1250,18 @@ function App() {
                     <i className={`fas ${reminder.reminder_type === 'watering' ? 'fa-tint text-blue-500' : 'fa-camera text-green-500'}`}></i>
                     <h3 className="font-semibold text-dark">{reminder.title}</h3>
                   </div>
+                  {reminder.reminder_reason && (
+                    <div className="bg-blue-50 p-2 rounded mb-2">
+                      <p className="text-xs text-secondary">
+                        <i className="fas fa-info-circle mr-1"></i>
+                        <strong>提醒原因：</strong> {reminder.reminder_reason}
+                      </p>
+                    </div>
+                  )}
                   <p className="text-sm text-medium mb-2">{reminder.message}</p>
                   <p className="text-xs text-medium">
-                    {new Date(reminder.scheduled_date).toLocaleString('zh-CN')}
+                    <i className="far fa-calendar mr-1"></i>
+                    计划时间: {new Date(reminder.scheduled_date).toLocaleString('zh-CN')}
                   </p>
                 </div>
                 <button 

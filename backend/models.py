@@ -83,6 +83,7 @@ class Reminder(Base):
     reminder_type = Column(String(20), nullable=False)  # 'watering', 're_examination'
     title = Column(String(200), nullable=False)
     message = Column(Text)
+    reminder_reason = Column(Text)  # 提醒原因说明
     scheduled_date = Column(DateTime, nullable=False)
     is_completed = Column(Boolean, default=False)
     is_read = Column(Boolean, default=False)
