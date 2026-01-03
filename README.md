@@ -37,7 +37,33 @@ AIPlantHealthCheck/
 
 ## 快速开始
 
-### 后端设置
+### 🐳 Docker 部署（推荐）
+
+使用 Docker Compose 一键部署所有服务（包括数据库）：
+
+```bash
+# 1. 克隆项目
+git clone https://github.com/jokeray819-sketch/AIPlantHealthCheck.git
+cd AIPlantHealthCheck
+
+# 2. 配置环境变量
+cp .env.docker .env
+# 编辑 .env 文件，修改数据库密码和密钥
+
+# 3. 启动所有服务
+docker-compose up -d
+
+# 4. 访问应用
+# 前端: http://localhost
+# 后端 API: http://localhost:8000
+# API 文档: http://localhost:8000/docs
+```
+
+详细的 Docker 部署说明请参考：[Docker 部署指南](DOCKER_DEPLOYMENT.md)
+
+### 手动部署
+
+#### 后端设置
 
 1. 安装 Python 依赖：
 ```bash
@@ -65,7 +91,7 @@ uvicorn main:app --reload
 
 后端 API 将运行在 http://localhost:8000
 
-### 前端设置
+#### 前端设置
 
 1. 安装 Node.js 依赖：
 ```bash
