@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+  # MySQL 数据库
+  mysql:
+    image: mysql:8.0
+    container_name: plant-health-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-your_password}
+      MYSQL_DATABASE: ${DB_NAME:-plant_health_db}
+      MYSQL_USER: ${DB_USER:-plant_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-your_password}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./backend/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
+    networks:
+      - plant-health-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 后端服务
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: plant-health-backend
+    restart: unless-stopped
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: ${DB_USER:-plant_user}
+      DB_PASSWORD: ${DB_PASSWORD:-your_password}
+      DB_NAME: ${DB_NAME:-plant_health_db}
+      SECRET_KEY: ${SECRET_KEY:-your-secret-key-here-change-in-production}
+      ALGORITHM: ${ALGORITHM:-HS256}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+    ports:
+      - "8000:8000"
+    volumes:
+      - backend_images:/app/images
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - plant-health-network
+
+  # 前端服务
+  frontend:
+    build:
+      context: ./front
+      dockerfile: Dockerfile
+    container_name: plant-health-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - plant-health-network
+
+volumes:
+  mysql_data:
+    driver: local
+  backend_images:
+    driver: local
+
+networks:
+  plant-health-network:
+    driver: bridge

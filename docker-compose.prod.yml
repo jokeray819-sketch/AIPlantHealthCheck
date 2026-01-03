@@ -1,0 +1,103 @@
+# Docker Compose 生产环境配置示例
+# 此文件展示了适用于生产环境的完整配置
+
+version: '3.8'
+
+services:
+  # MySQL 数据库
+  mysql:
+    image: mysql:8.0
+    container_name: plant-health-mysql-prod
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "127.0.0.1:3306:3306"  # 只在本地监听，不暴露到外网
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./backend/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
+      - ./mysql-conf.d:/etc/mysql/conf.d  # 自定义 MySQL 配置
+    networks:
+      - plant-health-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # 后端服务
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: plant-health-backend-prod
+    restart: always
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      SECRET_KEY: ${SECRET_KEY}
+      ALGORITHM: ${ALGORITHM:-HS256}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+    ports:
+      - "127.0.0.1:8000:8000"  # 只在本地监听，通过 nginx 代理
+    volumes:
+      - backend_images:/app/images
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - plant-health-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # 前端服务 (Nginx)
+  frontend:
+    build:
+      context: ./front
+      dockerfile: Dockerfile
+    container_name: plant-health-frontend-prod
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"  # HTTPS 端口
+    volumes:
+      - ./ssl:/etc/nginx/ssl:ro  # SSL 证书（如果有）
+    depends_on:
+      - backend
+    networks:
+      - plant-health-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  mysql_data:
+    driver: local
+  backend_images:
+    driver: local
+
+networks:
+  plant-health-network:
+    driver: bridge
