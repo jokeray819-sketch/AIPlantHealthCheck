@@ -528,13 +528,17 @@ async def predict_plant_health(
         raise HTTPException(status_code=400, detail="只支持 JPG 或 PNG 图片格式")
 
     try:
-        # 保存图片
-        image_url = await save_image(file)
-        
-        # 重新读取文件用于AI分析（因为之前读取过了）
-        await file.seek(0)
+        # 读取图片数据一次，用于保存和AI分析
         image_data = await file.read()
         image = Image.open(io.BytesIO(image_data))
+        
+        # 保存图片（使用已读取的数据）
+        file_ext = Path(file.filename).suffix.lower()
+        unique_filename = f"{uuid.uuid4()}{file_ext}"
+        file_path = IMAGES_DIR / unique_filename
+        with open(file_path, "wb") as f:
+            f.write(image_data)
+        image_url = f"/images/{unique_filename}"
         
         # 调用 AI 模型
         try:
@@ -1015,11 +1019,7 @@ async def upload_image(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user)
 ):
-    """上传植物图片（仅VIP用户）"""
-    # 注意：这里不需要VIP检查，因为上传图片主要用于诊断，非VIP用户也可以使用
-    # 如果需要限制，可以取消注释下面这行
-    # check_vip_access(db, current_user.id)
-    
+    """上传植物图片（所有登录用户可用，用于植物诊断）"""
     image_url = await save_image(file)
     return {"image_url": image_url, "message": "图片上传成功"}
 
