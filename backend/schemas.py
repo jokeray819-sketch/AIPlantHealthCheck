@@ -162,3 +162,54 @@ class ReminderResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+# 产品响应
+class ProductResponse(BaseModel):
+    id: int
+    name: str
+    description: Optional[str]
+    price: str
+    category: Optional[str]
+    tag: Optional[str]
+    icon_class: Optional[str]
+    bg_gradient: Optional[str]
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+# 订单项响应
+class OrderItemResponse(BaseModel):
+    id: int
+    order_id: int
+    product_id: int
+    quantity: int
+    price: str
+    product: Optional[ProductResponse]
+    
+    class Config:
+        from_attributes = True
+
+# 订单创建请求
+class OrderCreateRequest(BaseModel):
+    items: List[dict]  # [{"product_id": 1, "quantity": 2}, ...]
+    payment_method: str = Field(..., description="支付方式: eth, ckb")
+    transaction_hash: str  # 区块链交易哈希
+    wallet_address: str  # 钱包地址
+
+# 订单响应
+class OrderResponse(BaseModel):
+    id: int
+    user_id: int
+    order_number: str
+    total_amount: str
+    payment_method: Optional[str]
+    transaction_hash: Optional[str]
+    wallet_address: Optional[str]
+    status: str
+    created_at: datetime
+    updated_at: datetime
+    items: Optional[List[OrderItemResponse]] = []
+    
+    class Config:
+        from_attributes = True

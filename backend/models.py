@@ -91,3 +91,50 @@ class Reminder(Base):
     
     # Relationship
     user = relationship("User", back_populates="reminders")
+
+class Product(Base):
+    __tablename__ = "products"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), nullable=False)
+    description = Column(Text)
+    price = Column(String(20), nullable=False)  # Store as string like "¥29.9"
+    category = Column(String(50))  # 肥料, 杀虫剂, 土壤改良, 工具
+    tag = Column(String(50))  # Applicable condition e.g., "适用: 缺肥"
+    icon_class = Column(String(50))  # FontAwesome icon class
+    bg_gradient = Column(String(100))  # Background gradient CSS class
+    created_at = Column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
+    
+    # Relationship
+    order_items = relationship("OrderItem", back_populates="product")
+
+class Order(Base):
+    __tablename__ = "orders"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    order_number = Column(String(50), unique=True, nullable=False)
+    total_amount = Column(String(20), nullable=False)  # Store as string
+    payment_method = Column(String(20))  # 'eth', 'ckb'
+    transaction_hash = Column(String(200))  # Blockchain transaction hash
+    wallet_address = Column(String(200))
+    status = Column(String(20), default='pending')  # pending, paid, completed, cancelled
+    created_at = Column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
+    updated_at = Column(DateTime, server_default=text('CURRENT_TIMESTAMP'), onupdate=text('CURRENT_TIMESTAMP'))
+    
+    # Relationship
+    user = relationship("User", backref="orders")
+    items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
+
+class OrderItem(Base):
+    __tablename__ = "order_items"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    order_id = Column(Integer, ForeignKey("orders.id"), nullable=False)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    quantity = Column(Integer, nullable=False, default=1)
+    price = Column(String(20), nullable=False)  # Price at time of order
+    
+    # Relationship
+    order = relationship("Order", back_populates="items")
+    product = relationship("Product", back_populates="order_items")
