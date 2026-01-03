@@ -851,7 +851,7 @@ async def update_my_plant(
         
         if existing_reminder:
             existing_reminder.scheduled_date = datetime.combine(plant.next_watering_date, datetime.min.time())
-            existing_reminder.title = f"浇水提醒：{plant.nickname or plant.plant_name}"
+            existing_reminder.title = f"浇水提醒: {plant.nickname or plant.plant_name}"
             existing_reminder.message = f"该给 {plant.nickname or plant.plant_name} 浇水了！"
             existing_reminder.reminder_reason = f"根据{plant.watering_frequency}天的浇水周期，需要定期补充水分以保持土壤湿度。"
         else:
@@ -962,7 +962,7 @@ async def get_unread_reminders_count(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """获取未读提醒数量（提醒规则：执行日期前3天开始提醒）"""
+    """获取未读提醒数量（提醒规则：执行日期在3天内的提醒都会显示）"""
     current_time = datetime.now()
     three_days_later = current_time + timedelta(days=3)
     
