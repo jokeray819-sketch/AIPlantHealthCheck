@@ -39,8 +39,49 @@ function App() {
   const [selectedPlant, setSelectedPlant] = useState(null);
   const [unreadRemindersCount, setUnreadRemindersCount] = useState(0);
   
-  // 商城相关状态
-  const [products, setProducts] = useState([]);
+  // 商城相关状态 - 硬编码4个商品
+  const [products] = useState([
+    {
+      id: 1,
+      name: '植物营养液',
+      description: '全面补充植物所需营养，促进生长，改善缺肥症状',
+      price: '¥29.9',
+      category: '肥料',
+      tag: '适用: 缺肥',
+      icon_class: 'fa-leaf',
+      bg_gradient: 'from-green-400 to-green-600'
+    },
+    {
+      id: 2,
+      name: '杀虫剂',
+      description: '高效杀灭常见植物害虫，安全环保，快速见效',
+      price: '¥39.9',
+      category: '杀虫剂',
+      tag: '适用: 虫害',
+      icon_class: 'fa-bug',
+      bg_gradient: 'from-yellow-400 to-orange-500'
+    },
+    {
+      id: 3,
+      name: '有机营养土',
+      description: '富含有机质，透气排水，适合各类盆栽植物',
+      price: '¥49.9',
+      category: '土壤改良',
+      tag: '土壤改良',
+      icon_class: 'fa-tint',
+      bg_gradient: 'from-blue-400 to-purple-500'
+    },
+    {
+      id: 4,
+      name: '植物修复剂',
+      description: '专业治疗植物病害，修复受损叶片，增强抗性',
+      price: '¥35.9',
+      category: '病害治疗',
+      tag: '病害治疗',
+      icon_class: 'fa-medkit',
+      bg_gradient: 'from-red-400 to-pink-500'
+    }
+  ]);
   const [selectedCategory, setSelectedCategory] = useState('全部商品');
   const [cart, setCart] = useState([]);
   const [showCartModal, setShowCartModal] = useState(false);
@@ -87,13 +128,6 @@ function App() {
       fetchUnreadRemindersCount();
     }
   }, [isAuthenticated, currentPage]);
-
-  // 当用户进入商城页面时，获取产品列表
-  useEffect(() => {
-    if (currentPage === 'shop') {
-      fetchProducts();
-    }
-  }, [currentPage]);
 
   // 获取当前用户信息
   const fetchCurrentUser = async (token) => {
@@ -183,16 +217,6 @@ function App() {
       setUnreadRemindersCount(response.data.unread_count);
     } catch (error) {
       console.error('获取未读提醒数量失败:', error);
-    }
-  };
-
-  // 获取产品列表
-  const fetchProducts = async () => {
-    try {
-      const response = await axios.get(`${BASE_URL}/products`);
-      setProducts(response.data);
-    } catch (error) {
-      console.error('获取产品列表失败:', error);
     }
   };
 
@@ -1071,7 +1095,7 @@ function App() {
         
         {/* 商品分类 */}
         <div className="flex overflow-x-auto pb-2 mb-6 -mx-4 px-4">
-          {['全部商品', '肥料', '杀虫剂', '土壤改良', '工具'].map(category => (
+          {['全部商品', '肥料', '杀虫剂', '土壤改良', '病害治疗'].map(category => (
             <button
               key={category}
               onClick={() => setSelectedCategory(category)}
