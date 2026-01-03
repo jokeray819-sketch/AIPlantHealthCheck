@@ -37,6 +37,12 @@ UNLIMITED_DETECTIONS = -1  # VIP用户无限检测次数（使用-1表示）
 DEFAULT_SEVERITY_VALUE = 30  # 默认严重程度值
 HOST = os.getenv("HOST", "0.0.0.0")
 
+# 提醒类型映射
+REMINDER_TYPE_MAPPING = {
+    "浇水提醒": "watering",
+    "复查提醒": "re_examination"
+}
+
 # 图片存储配置
 IMAGES_DIR = Path(__file__).parent / "images"
 IMAGES_DIR.mkdir(exist_ok=True)
@@ -629,14 +635,10 @@ async def predict_plant_health(
             scheduled_date = datetime.now() + timedelta(days=result.reminder_days)
             
             # 确定提醒类型映射
-            reminder_type_map = {
-                "浇水提醒": "watering",
-                "复查提醒": "re_examination"
-            }
-            reminder_type_en = reminder_type_map.get(result.reminder_type, "re_examination")
+            reminder_type_en = REMINDER_TYPE_MAPPING.get(result.reminder_type, "re_examination")
             
             # 创建提醒标题和消息
-            title = f"{result.reminder_type}：{result.plant_name}"
+            title = f"{result.reminder_type}: {result.plant_name}"
             message = result.reminder_reason or f"建议{result.reminder_days}天后{'浇水' if reminder_type_en == 'watering' else '复查'}"
             
             # 创建提醒
@@ -803,7 +805,7 @@ async def create_my_plant(
             user_id=current_user.id,
             plant_id=new_plant.id,
             reminder_type="watering",
-            title=f"浇水提醒：{plant.nickname or plant.plant_name}",
+            title=f"浇水提醒: {plant.nickname or plant.plant_name}",
             message=f"该给 {plant.nickname or plant.plant_name} 浇水了！",
             reminder_reason=f"根据{plant.watering_frequency}天的浇水周期，需要定期补充水分以保持土壤湿度。",
             scheduled_date=datetime.combine(next_watering_date, datetime.min.time())
@@ -857,7 +859,7 @@ async def update_my_plant(
                 user_id=current_user.id,
                 plant_id=plant_id,
                 reminder_type="watering",
-                title=f"浇水提醒：{plant.nickname or plant.plant_name}",
+                title=f"浇水提醒: {plant.nickname or plant.plant_name}",
                 message=f"该给 {plant.nickname or plant.plant_name} 浇水了！",
                 reminder_reason=f"根据{plant.watering_frequency}天的浇水周期，需要定期补充水分以保持土壤湿度。",
                 scheduled_date=datetime.combine(plant.next_watering_date, datetime.min.time())
@@ -923,7 +925,7 @@ async def water_plant(
             user_id=current_user.id,
             plant_id=plant_id,
             reminder_type="watering",
-            title=f"浇水提醒：{plant.nickname or plant.plant_name}",
+            title=f"浇水提醒: {plant.nickname or plant.plant_name}",
             message=f"该给 {plant.nickname or plant.plant_name} 浇水了！",
             reminder_reason=f"根据{plant.watering_frequency}天的浇水周期，需要定期补充水分以保持土壤湿度。",
             scheduled_date=datetime.combine(plant.next_watering_date, datetime.min.time())
@@ -1059,7 +1061,7 @@ async def create_reexamination_reminder(
         user_id=current_user.id,
         plant_id=plant_id,
         reminder_type="re_examination",
-        title=f"复查提醒：{plant.nickname or plant.plant_name}",
+        title=f"复查提醒: {plant.nickname or plant.plant_name}",
         message=f"建议再次拍照检查 {plant.nickname or plant.plant_name} 的健康状况",
         reminder_reason=f"经过{days}天的养护，需要检查植物恢复情况，确认问题是否得到解决。",
         scheduled_date=scheduled_date

@@ -1247,7 +1247,7 @@ function App() {
                     <div className="bg-blue-50 p-2 rounded mb-2">
                       <p className="text-xs text-secondary">
                         <i className="fas fa-info-circle mr-1"></i>
-                        <strong>提醒原因：</strong>{reminder.reminder_reason}
+                        <strong>提醒原因：</strong> {reminder.reminder_reason}
                       </p>
                     </div>
                   )}
