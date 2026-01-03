@@ -1182,12 +1182,21 @@ function App() {
               key={plant.id} 
               onClick={() => {
                 setSelectedPlant(plant);
+                setShowMyPlantsPage(false);
                 setShowPlantDetailPage(true);
               }}
               className="bg-white rounded-lg overflow-hidden card-shadow cursor-pointer"
             >
               <div className="w-full h-32 bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center">
-                <i className="fas fa-leaf text-white text-4xl"></i>
+                {plant.image_url ? (
+                  <img 
+                    src={`${BASE_URL}${plant.image_url}`} 
+                    alt={plant.plant_name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <i className="fas fa-leaf text-white text-4xl"></i>
+                )}
               </div>
               <div className="p-3">
                 <h3 className="font-semibold text-dark text-sm mb-1">
@@ -1274,6 +1283,7 @@ function App() {
         <div className="flex justify-between items-center mb-4">
           <button onClick={() => {
             setShowPlantDetailPage(false);
+            setShowMyPlantsPage(true);
             setSelectedPlant(null);
           }} className="text-medium p-2">
             <i className="fas fa-arrow-left"></i>
@@ -1283,8 +1293,16 @@ function App() {
         </div>
         
         <div className="bg-white rounded-lg p-4 mb-4 card-shadow">
-          <div className="w-full h-48 bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center rounded-lg mb-4">
-            <i className="fas fa-leaf text-white text-6xl"></i>
+          <div className="w-full h-48 bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center rounded-lg mb-4 overflow-hidden">
+            {selectedPlant.image_url ? (
+              <img 
+                src={`${BASE_URL}${selectedPlant.image_url}`} 
+                alt={selectedPlant.plant_name}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <i className="fas fa-leaf text-white text-6xl"></i>
+            )}
           </div>
           
           <h3 className="text-lg font-bold text-dark mb-1">
@@ -1331,6 +1349,7 @@ function App() {
                 alert('浇水记录已更新');
                 fetchMyPlants();
                 setShowPlantDetailPage(false);
+                setShowMyPlantsPage(true);
                 setSelectedPlant(null);
               } catch (error) {
                 alert('更新失败: ' + (error.response?.data?.detail || error.message));
@@ -1371,6 +1390,7 @@ function App() {
                   alert('植物已删除');
                   fetchMyPlants();
                   setShowPlantDetailPage(false);
+                  setShowMyPlantsPage(true);
                   setSelectedPlant(null);
                 } catch (error) {
                   alert('删除失败: ' + (error.response?.data?.detail || error.message));
