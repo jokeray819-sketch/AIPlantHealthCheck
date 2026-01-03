@@ -50,10 +50,10 @@ if [ ! -f .env ]; then
         # Try to find an available editor
         if command -v nano &> /dev/null; then
             nano .env
-        elif command -v vi &> /dev/null; then
-            vi .env
         elif command -v vim &> /dev/null; then
             vim .env
+        elif command -v vi &> /dev/null; then
+            vi .env
         else
             echo "未找到可用的编辑器，请手动编辑 .env 文件"
         fi
