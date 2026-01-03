@@ -66,6 +66,13 @@ function App() {
     }
   }, []);
 
+  // 当用户在"我的"页面时，刷新未读提醒数量
+  useEffect(() => {
+    if (isAuthenticated && currentPage === 'profile') {
+      fetchUnreadRemindersCount();
+    }
+  }, [isAuthenticated, currentPage]);
+
   // 获取当前用户信息
   const fetchCurrentUser = async (token) => {
     try {
