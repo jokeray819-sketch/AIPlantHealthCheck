@@ -35,6 +35,16 @@ function App() {
   const [selectedPlant, setSelectedPlant] = useState(null);
   const [unreadRemindersCount, setUnreadRemindersCount] = useState(0);
   
+  // 商城相关状态
+  const [products, setProducts] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState('全部商品');
+  const [cart, setCart] = useState([]);
+  const [showCartModal, setShowCartModal] = useState(false);
+  const [showCheckoutModal, setShowCheckoutModal] = useState(false);
+  const [showOrdersPage, setShowOrdersPage] = useState(false);
+  const [orders, setOrders] = useState([]);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  
   // 认证相关状态
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -72,6 +82,13 @@ function App() {
       fetchUnreadRemindersCount();
     }
   }, [isAuthenticated, currentPage]);
+
+  // 当用户进入商城页面时，获取产品列表
+  useEffect(() => {
+    if (currentPage === 'shop') {
+      fetchProducts();
+    }
+  }, [currentPage]);
 
   // 获取当前用户信息
   const fetchCurrentUser = async (token) => {
@@ -161,6 +178,191 @@ function App() {
       setUnreadRemindersCount(response.data.unread_count);
     } catch (error) {
       console.error('获取未读提醒数量失败:', error);
+    }
+  };
+
+  // 获取产品列表
+  const fetchProducts = async () => {
+    try {
+      const response = await axios.get(`${BASE_URL}/products`);
+      setProducts(response.data);
+    } catch (error) {
+      console.error('获取产品列表失败:', error);
+    }
+  };
+
+  // 获取订单列表
+  const fetchOrders = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    
+    try {
+      const response = await axios.get(`${BASE_URL}/orders`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      setOrders(response.data);
+    } catch (error) {
+      console.error('获取订单列表失败:', error);
+    }
+  };
+
+  // 添加到购物车
+  const addToCart = (product) => {
+    setCart(prevCart => {
+      const existingItem = prevCart.find(item => item.id === product.id);
+      if (existingItem) {
+        return prevCart.map(item =>
+          item.id === product.id
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+        );
+      }
+      return [...prevCart, { ...product, quantity: 1 }];
+    });
+  };
+
+  // 更新购物车商品数量
+  const updateCartQuantity = (productId, quantity) => {
+    if (quantity <= 0) {
+      removeFromCart(productId);
+      return;
+    }
+    setCart(prevCart =>
+      prevCart.map(item =>
+        item.id === productId ? { ...item, quantity } : item
+      )
+    );
+  };
+
+  // 从购物车移除
+  const removeFromCart = (productId) => {
+    setCart(prevCart => prevCart.filter(item => item.id !== productId));
+  };
+
+  // 清空购物车
+  const clearCart = () => {
+    setCart([]);
+  };
+
+  // 计算购物车总价
+  const getCartTotal = () => {
+    return cart.reduce((total, item) => {
+      const price = parseFloat(item.price.replace('¥', ''));
+      return total + (price * item.quantity);
+    }, 0);
+  };
+
+  // 处理结账
+  const handleCheckout = async () => {
+    if (!isAuthenticated) {
+      alert('请先登录');
+      setShowCartModal(false);
+      setShowAuthModal(true);
+      return;
+    }
+
+    if (cart.length === 0) {
+      alert('购物车为空');
+      return;
+    }
+
+    setShowCartModal(false);
+    setShowCheckoutModal(true);
+  };
+
+  // 完成支付
+  const handlePayment = async () => {
+    if (!isAuthenticated) {
+      alert('请先登录');
+      return;
+    }
+
+    setCheckoutLoading(true);
+    try {
+      // 如果钱包未连接，先连接
+      let address = walletAddress;
+      if (!walletConnected) {
+        address = await connectWallet();
+        if (!address) {
+          setCheckoutLoading(false);
+          return;
+        }
+      }
+
+      const total = getCartTotal();
+      let txHash;
+
+      if (selectedWalletType === 'eth') {
+        // 以太坊支付流程
+        const priceInWei = BigInt(Math.floor(total * 1000000000000000)).toString(); // Convert CNY to Wei (simplified)
+        
+        const transactionParameters = {
+          to: PAYMENT_RECIPIENT_ADDRESS,
+          from: address,
+          value: '0x' + BigInt(priceInWei).toString(16),
+        };
+
+        txHash = await window.ethereum.request({
+          method: 'eth_sendTransaction',
+          params: [transactionParameters],
+        });
+      } else if (selectedWalletType === 'ckb') {
+        // CKB支付流程
+        const priceInCKB = BigInt(Math.floor(total * 100000000)).toString(); // Convert CNY to CKB shannons (simplified)
+
+        if (window.ckbSigner) {
+          const signer = window.ckbSigner;
+          
+          const tx = ccc.Transaction.from({
+            outputs: [{
+              lock: await ccc.Address.fromString(PAYMENT_RECIPIENT_ADDRESS, signer.client).getScript(),
+              capacity: ccc.fixedPointFrom(priceInCKB),
+            }],
+          });
+          
+          await tx.completeInputsByCapacity(signer);
+          await tx.completeFeeBy(signer, 1000);
+          
+          txHash = await signer.sendTransaction(tx);
+        } else {
+          throw new Error('请先连接CKB钱包');
+        }
+      }
+
+      console.log('交易哈希:', txHash);
+
+      // 创建订单
+      const token = localStorage.getItem('token');
+      const orderItems = cart.map(item => ({
+        product_id: item.id,
+        quantity: item.quantity
+      }));
+
+      const response = await axios.post(`${BASE_URL}/orders`, {
+        items: orderItems,
+        payment_method: selectedWalletType,
+        transaction_hash: txHash,
+        wallet_address: address
+      }, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.data) {
+        alert('支付成功！订单已创建');
+        clearCart();
+        setShowCheckoutModal(false);
+        // 刷新订单列表
+        await fetchOrders();
+      }
+    } catch (error) {
+      console.error('支付失败:', error);
+      if (error.code === 4001) {
+        alert('您取消了交易');
+      } else {
+        alert(error.response?.data?.detail || error.message || '支付失败，请重试');
+      }
+    } finally {
+      setCheckoutLoading(false);
     }
   };
 
@@ -830,106 +1032,94 @@ function App() {
   );
 
   // 渲染商城页面
-  const renderShopPage = () => (
-    <div className="p-4 pb-20">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-bold text-dark">商城</h2>
-        <button className="text-secondary p-2 relative">
-          <i className="fas fa-shopping-cart"></i>
-          <span className="absolute top-0 right-0 w-4 h-4 bg-danger rounded-full text-white text-xs flex items-center justify-center">0</span>
-        </button>
-      </div>
-      
-      {/* 商品分类 */}
-      <div className="flex overflow-x-auto pb-2 mb-6 -mx-4 px-4">
-        <button className="bg-primary text-white px-4 py-2 rounded-full text-sm whitespace-nowrap mr-3">全部商品</button>
-        <button className="bg-white text-dark px-4 py-2 rounded-full text-sm whitespace-nowrap mr-3 card-shadow">肥料</button>
-        <button className="bg-white text-dark px-4 py-2 rounded-full text-sm whitespace-nowrap mr-3 card-shadow">杀虫剂</button>
-        <button className="bg-white text-dark px-4 py-2 rounded-full text-sm whitespace-nowrap mr-3 card-shadow">土壤改良</button>
-        <button className="bg-white text-dark px-4 py-2 rounded-full text-sm whitespace-nowrap card-shadow">工具</button>
-      </div>
-      
-      {/* 推荐商品 */}
-      <div className="mb-6">
-        <h3 className="font-semibold text-dark mb-3">为您推荐</h3>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="bg-white rounded-lg overflow-hidden card-shadow">
-            <div className="w-full h-32 bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center">
-              <i className="fas fa-leaf text-white text-4xl"></i>
-            </div>
-            <div className="p-3">
-              <h4 className="font-medium text-dark text-sm mb-1">植物营养液</h4>
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-accent font-bold">¥29.9</span>
-                <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">适用: 缺肥</span>
-              </div>
-              <button className="w-full bg-primary/10 text-primary text-sm py-1.5 rounded flex items-center justify-center">
-                <i className="fas fa-shopping-cart mr-1"></i>
-                <span>加入购物车</span>
-              </button>
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-lg overflow-hidden card-shadow">
-            <div className="w-full h-32 bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center">
-              <i className="fas fa-bug text-white text-4xl"></i>
-            </div>
-            <div className="p-3">
-              <h4 className="font-medium text-dark text-sm mb-1">杀虫剂</h4>
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-accent font-bold">¥39.9</span>
-                <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">适用: 虫害</span>
-              </div>
-              <button className="w-full bg-primary/10 text-primary text-sm py-1.5 rounded flex items-center justify-center">
-                <i className="fas fa-shopping-cart mr-1"></i>
-                <span>加入购物车</span>
-              </button>
-            </div>
-          </div>
+  const renderShopPage = () => {
+    const filteredProducts = selectedCategory === '全部商品' 
+      ? products 
+      : products.filter(p => p.category === selectedCategory);
+    
+    return (
+      <div className="p-4 pb-20">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold text-dark">商城</h2>
+          <button 
+            onClick={() => setShowCartModal(true)}
+            className="text-secondary p-2 relative"
+          >
+            <i className="fas fa-shopping-cart"></i>
+            {cart.length > 0 && (
+              <span className="absolute top-0 right-0 w-4 h-4 bg-danger rounded-full text-white text-xs flex items-center justify-center">
+                {cart.reduce((sum, item) => sum + item.quantity, 0)}
+              </span>
+            )}
+          </button>
         </div>
-      </div>
-
-      {/* 热门商品 */}
-      <div>
-        <h3 className="font-semibold text-dark mb-3">热门商品</h3>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="bg-white rounded-lg overflow-hidden card-shadow">
-            <div className="w-full h-32 bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center">
-              <i className="fas fa-tint text-white text-4xl"></i>
-            </div>
-            <div className="p-3">
-              <h4 className="font-medium text-dark text-sm mb-1">有机营养土</h4>
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-accent font-bold">¥49.9</span>
-                <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">土壤改良</span>
-              </div>
-              <button className="w-full bg-primary/10 text-primary text-sm py-1.5 rounded flex items-center justify-center">
-                <i className="fas fa-shopping-cart mr-1"></i>
-                <span>加入购物车</span>
-              </button>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg overflow-hidden card-shadow">
-            <div className="w-full h-32 bg-gradient-to-br from-red-400 to-pink-500 flex items-center justify-center">
-              <i className="fas fa-medkit text-white text-4xl"></i>
-            </div>
-            <div className="p-3">
-              <h4 className="font-medium text-dark text-sm mb-1">植物修复剂</h4>
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-accent font-bold">¥35.9</span>
-                <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">病害治疗</span>
-              </div>
-              <button className="w-full bg-primary/10 text-primary text-sm py-1.5 rounded flex items-center justify-center">
-                <i className="fas fa-shopping-cart mr-1"></i>
-                <span>加入购物车</span>
-              </button>
-            </div>
-          </div>
+        
+        {/* 商品分类 */}
+        <div className="flex overflow-x-auto pb-2 mb-6 -mx-4 px-4">
+          {['全部商品', '肥料', '杀虫剂', '土壤改良', '工具'].map(category => (
+            <button
+              key={category}
+              onClick={() => setSelectedCategory(category)}
+              className={`px-4 py-2 rounded-full text-sm whitespace-nowrap mr-3 ${
+                selectedCategory === category
+                  ? 'bg-primary text-white'
+                  : 'bg-white text-dark card-shadow'
+              }`}
+            >
+              {category}
+            </button>
+          ))}
         </div>
+        
+        {/* 商品列表 */}
+        {filteredProducts.length === 0 ? (
+          <div className="text-center py-20">
+            <i className="fas fa-box-open text-6xl text-gray-300 mb-4"></i>
+            <p className="text-medium">暂无商品</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-4">
+            {filteredProducts.map(product => (
+              <div key={product.id} className="bg-white rounded-lg overflow-hidden card-shadow">
+                <div className={`w-full h-32 bg-gradient-to-br ${product.bg_gradient || 'from-gray-400 to-gray-600'} flex items-center justify-center`}>
+                  <i className={`fas ${product.icon_class || 'fa-box'} text-white text-4xl`}></i>
+                </div>
+                <div className="p-3">
+                  <h4 className="font-medium text-dark text-sm mb-1">{product.name}</h4>
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-accent font-bold">{product.price}</span>
+                    {product.tag && (
+                      <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">
+                        {product.tag}
+                      </span>
+                    )}
+                  </div>
+                  <button 
+                    onClick={() => {
+                      addToCart(product);
+                      // 显示提示
+                      const btn = event.target.closest('button');
+                      const originalText = btn.innerHTML;
+                      btn.innerHTML = '<i class="fas fa-check mr-1"></i><span>已添加</span>';
+                      btn.classList.add('bg-green-500', 'text-white');
+                      setTimeout(() => {
+                        btn.innerHTML = originalText;
+                        btn.classList.remove('bg-green-500', 'text-white');
+                      }, 1000);
+                    }}
+                    className="w-full bg-primary/10 text-primary text-sm py-1.5 rounded flex items-center justify-center transition"
+                  >
+                    <i className="fas fa-shopping-cart mr-1"></i>
+                    <span>加入购物车</span>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
-    </div>
-  );
+    );
+  };
 
   // 渲染我的页面
   const renderProfilePage = () => (
@@ -1032,11 +1222,22 @@ function App() {
             </div>
             <span className="text-xs text-dark">提醒消息</span>
           </button>
-          <button className="flex flex-col items-center">
+          <button 
+            onClick={() => {
+              if (isAuthenticated) {
+                fetchOrders();
+                setShowOrdersPage(true);
+              } else {
+                alert('请先登录');
+                setShowAuthModal(true);
+              }
+            }}
+            className="flex flex-col items-center"
+          >
             <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 mb-1">
-              <i className="fas fa-cog"></i>
+              <i className="fas fa-file-invoice"></i>
             </div>
-            <span className="text-xs text-dark">设置</span>
+            <span className="text-xs text-dark">我的订单</span>
           </button>
         </div>
       </div>
@@ -1423,6 +1624,59 @@ function App() {
     );
   };
 
+  // 渲染我的订单页面
+  const renderOrdersPage = () => (
+    <div className="p-4 pb-20">
+      <div className="flex justify-between items-center mb-4">
+        <button onClick={() => setShowOrdersPage(false)} className="text-medium p-2">
+          <i className="fas fa-arrow-left"></i>
+        </button>
+        <h2 className="text-xl font-bold text-dark">我的订单</h2>
+        <div className="w-8"></div>
+      </div>
+      
+      {orders.length === 0 ? (
+        <div className="text-center py-20">
+          <i className="fas fa-file-invoice text-6xl text-gray-300 mb-4"></i>
+          <p className="text-medium">暂无订单</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {orders.map((order) => (
+            <div key={order.id} className="bg-white rounded-lg p-4 card-shadow">
+              <div className="flex justify-between items-start mb-3">
+                <div>
+                  <p className="text-xs text-medium">订单号: {order.order_number}</p>
+                  <p className="text-xs text-medium mt-1">
+                    {new Date(order.created_at).toLocaleString('zh-CN')}
+                  </p>
+                </div>
+                <span className={`text-xs px-2 py-1 rounded-full ${
+                  order.status === 'paid' ? 'bg-green-100 text-green-700' : 
+                  order.status === 'completed' ? 'bg-blue-100 text-blue-700' : 
+                  'bg-yellow-100 text-yellow-700'
+                }`}>
+                  {order.status === 'paid' ? '已支付' : 
+                   order.status === 'completed' ? '已完成' : '待支付'}
+                </span>
+              </div>
+              
+              <div className="border-t pt-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-dark">总计</span>
+                  <span className="text-lg font-bold text-accent">{order.total_amount}</span>
+                </div>
+                <p className="text-xs text-medium mt-2">
+                  支付方式: {order.payment_method === 'eth' ? 'ETH' : 'CKB'}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center">
       <div className="w-full max-w-md bg-white min-h-screen relative">
@@ -1433,7 +1687,8 @@ function App() {
          showHistoryPage ? renderHistoryPage() :
          showMyPlantsPage ? renderMyPlantsPage() :
          showRemindersPage ? renderRemindersPage() :
-         showPlantDetailPage ? renderPlantDetailPage() : (
+         showPlantDetailPage ? renderPlantDetailPage() :
+         showOrdersPage ? renderOrdersPage() : (
           <>
             {currentPage === 'detection' && renderDetectionPage()}
             {currentPage === 'shop' && renderShopPage()}
@@ -1442,7 +1697,7 @@ function App() {
         )}
 
         {/* 底部导航栏 */}
-        {!showCapturePage && !showAnalyzingPage && !showResultPage && !showHistoryPage && !showMyPlantsPage && !showRemindersPage && !showPlantDetailPage && (
+        {!showCapturePage && !showAnalyzingPage && !showResultPage && !showHistoryPage && !showMyPlantsPage && !showRemindersPage && !showPlantDetailPage && !showOrdersPage && (
           <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white border-t border-gray-200 flex justify-around py-2 z-10">
           <button
             className={`flex flex-col items-center justify-center px-4 py-1 ${currentPage === 'detection' ? 'text-primary' : 'text-medium'}`}
@@ -1768,6 +2023,224 @@ function App() {
               >
                 <i className="fas fa-wallet"></i>
                 <span>{purchaseLoading ? '处理中...' : walletConnected ? '确认支付' : '连接钱包并支付'}</span>
+              </button>
+
+              {/* 提示信息 */}
+              <div className="mt-4 text-xs text-medium text-center">
+                {selectedWalletType === 'eth' ? (
+                  <>
+                    <p>支付使用以太坊Sepolia测试网（MetaMask）</p>
+                    <p className="mt-1">请确保您的钱包有足够的测试ETH余额</p>
+                  </>
+                ) : (
+                  <>
+                    <p>支付使用CKB钱包（{selectedCkbWallet === 'joyid' ? 'JoyID' : 'UTXO钱包'}）</p>
+                    <p className="mt-1">请确保您的钱包有足够的CKB余额</p>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 购物车模态框 */}
+        {showCartModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowCartModal(false)}>
+            <div className="bg-white rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-2xl font-bold text-dark">购物车</h3>
+                <button onClick={() => setShowCartModal(false)} className="text-medium" aria-label="关闭">
+                  <i className="fas fa-times"></i>
+                </button>
+              </div>
+
+              {cart.length === 0 ? (
+                <div className="text-center py-10">
+                  <i className="fas fa-shopping-cart text-6xl text-gray-300 mb-4"></i>
+                  <p className="text-medium">购物车为空</p>
+                </div>
+              ) : (
+                <>
+                  {/* 购物车商品列表 */}
+                  <div className="space-y-3 mb-6">
+                    {cart.map((item) => (
+                      <div key={item.id} className="bg-gray-50 rounded-lg p-3">
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="flex-1">
+                            <h4 className="font-medium text-dark text-sm">{item.name}</h4>
+                            <p className="text-accent font-bold mt-1">{item.price}</p>
+                          </div>
+                          <button
+                            onClick={() => removeFromCart(item.id)}
+                            className="text-red-500 p-1"
+                          >
+                            <i className="fas fa-trash"></i>
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => updateCartQuantity(item.id, item.quantity - 1)}
+                            className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center"
+                          >
+                            <i className="fas fa-minus text-sm"></i>
+                          </button>
+                          <span className="text-dark font-medium">{item.quantity}</span>
+                          <button
+                            onClick={() => updateCartQuantity(item.id, item.quantity + 1)}
+                            className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center"
+                          >
+                            <i className="fas fa-plus text-sm"></i>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* 总计 */}
+                  <div className="border-t pt-4 mb-4">
+                    <div className="flex justify-between items-center mb-4">
+                      <span className="text-lg font-semibold text-dark">总计</span>
+                      <span className="text-2xl font-bold text-accent">¥{getCartTotal().toFixed(1)}</span>
+                    </div>
+                  </div>
+
+                  {/* 操作按钮 */}
+                  <div className="flex gap-3">
+                    <button
+                      onClick={clearCart}
+                      className="flex-1 bg-gray-200 text-dark py-3 rounded-lg font-medium transition hover:bg-gray-300"
+                    >
+                      清空购物车
+                    </button>
+                    <button
+                      onClick={handleCheckout}
+                      className="flex-1 bg-primary text-white py-3 rounded-lg font-medium btn-shadow transition hover:bg-primary/90"
+                    >
+                      立即支付
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* 支付弹窗 */}
+        {showCheckoutModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowCheckoutModal(false)}>
+            <div className="bg-white rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-2xl font-bold text-dark">确认支付</h3>
+                <button onClick={() => setShowCheckoutModal(false)} className="text-medium" aria-label="关闭">
+                  <i className="fas fa-times"></i>
+                </button>
+              </div>
+
+              {/* 订单摘要 */}
+              <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                <h4 className="font-semibold text-dark mb-3">订单摘要</h4>
+                <div className="space-y-2 mb-3">
+                  {cart.map((item) => (
+                    <div key={item.id} className="flex justify-between text-sm">
+                      <span className="text-medium">{item.name} x{item.quantity}</span>
+                      <span className="text-dark">
+                        ¥{(parseFloat(item.price.replace('¥', '')) * item.quantity).toFixed(1)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <div className="border-t pt-2 flex justify-between items-center">
+                  <span className="font-semibold text-dark">总计</span>
+                  <span className="text-xl font-bold text-accent">¥{getCartTotal().toFixed(1)}</span>
+                </div>
+              </div>
+
+              {/* 支付方式选择 */}
+              <div className="mb-6">
+                <h4 className="font-semibold text-dark mb-3">选择支付方式</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div 
+                    onClick={() => {
+                      setSelectedWalletType('eth');
+                      setWalletConnected(false);
+                      setWalletAddress('');
+                    }}
+                    className={`border-2 rounded-lg p-4 cursor-pointer transition text-center ${selectedWalletType === 'eth' ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-primary/50'}`}
+                  >
+                    <div className="text-2xl mb-2">
+                      <i className="fab fa-ethereum"></i>
+                    </div>
+                    <h5 className="font-semibold text-dark text-sm">以太坊</h5>
+                    <p className="text-xs text-medium mt-1">Sepolia测试网</p>
+                  </div>
+                  <div 
+                    onClick={() => {
+                      setSelectedWalletType('ckb');
+                      setWalletConnected(false);
+                      setWalletAddress('');
+                    }}
+                    className={`border-2 rounded-lg p-4 cursor-pointer transition text-center ${selectedWalletType === 'ckb' ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-primary/50'}`}
+                  >
+                    <div className="text-2xl mb-2">
+                      <i className="fas fa-coins"></i>
+                    </div>
+                    <h5 className="font-semibold text-dark text-sm">CKB</h5>
+                    <p className="text-xs text-medium mt-1">Testnet测试网</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* CKB钱包类型选择 */}
+              {selectedWalletType === 'ckb' && (
+                <div className="mb-6">
+                  <h4 className="font-semibold text-dark mb-3">选择CKB钱包</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div 
+                      onClick={() => {
+                        setSelectedCkbWallet('joyid');
+                        setWalletConnected(false);
+                        setWalletAddress('');
+                      }}
+                      className={`border-2 rounded-lg p-3 cursor-pointer transition text-center ${selectedCkbWallet === 'joyid' ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-primary/50'}`}
+                    >
+                      <div className="text-xl mb-1">
+                        <i className="fas fa-smile"></i>
+                      </div>
+                      <h5 className="font-semibold text-dark text-xs">JoyID</h5>
+                    </div>
+                    <div 
+                      onClick={() => {
+                        setSelectedCkbWallet('utxo');
+                        setWalletConnected(false);
+                        setWalletAddress('');
+                      }}
+                      className={`border-2 rounded-lg p-3 cursor-pointer transition text-center ${selectedCkbWallet === 'utxo' ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-primary/50'}`}
+                    >
+                      <div className="text-xl mb-1">
+                        <i className="fas fa-wallet"></i>
+                      </div>
+                      <h5 className="font-semibold text-dark text-xs">UTXO钱包</h5>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 钱包连接状态 */}
+              {walletConnected && (
+                <div className="mb-4 p-3 bg-green-50 text-green-700 rounded-lg text-sm flex items-center gap-2">
+                  <i className="fas fa-wallet"></i>
+                  <span>钱包已连接: {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}</span>
+                </div>
+              )}
+
+              {/* 支付按钮 */}
+              <button
+                onClick={handlePayment}
+                disabled={checkoutLoading}
+                className={`w-full py-3 rounded-lg font-medium text-white btn-shadow transition flex items-center justify-center gap-2 ${checkoutLoading ? 'bg-gray-400' : 'bg-primary hover:bg-primary/90'}`}
+              >
+                <i className="fas fa-wallet"></i>
+                <span>{checkoutLoading ? '处理中...' : walletConnected ? '确认支付' : '连接钱包并支付'}</span>
               </button>
 
               {/* 提示信息 */}

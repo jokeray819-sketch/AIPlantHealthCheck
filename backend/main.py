@@ -13,15 +13,16 @@ import re
 import uuid
 from pathlib import Path
 from volcenginesdkarkruntime import Ark
-from typing import List
+from typing import List, Optional
 
 from database import engine, get_db, Base
-from models import User, Membership, DiagnosisHistory, MyPlant, Reminder
+from models import User, Membership, DiagnosisHistory, MyPlant, Reminder, Product, Order, OrderItem
 from schemas import (
     UserRegister, UserLogin, Token, UserResponse, DetectionResult, 
     MembershipResponse, MembershipPurchaseRequest, MembershipPurchaseResponse,
     DiagnosisHistoryResponse, MyPlantCreate, MyPlantUpdate, MyPlantResponse,
-    ReminderCreate, ReminderUpdate, ReminderResponse
+    ReminderCreate, ReminderUpdate, ReminderResponse,
+    ProductResponse, OrderCreateRequest, OrderResponse, OrderItemResponse
 )
 from auth import (
     get_password_hash,
@@ -1082,6 +1083,119 @@ async def upload_image(
     """上传植物图片（所有登录用户可用，用于植物诊断）"""
     image_url = await save_image(file)
     return {"image_url": image_url, "message": "图片上传成功"}
+
+# ==================== 产品管理 ====================
+
+@app.get("/products", response_model=List[ProductResponse])
+def get_products(
+    category: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """获取所有产品列表，可选按分类筛选"""
+    query = db.query(Product)
+    if category and category != "全部商品":
+        query = query.filter(Product.category == category)
+    products = query.all()
+    return products
+
+@app.get("/products/{product_id}", response_model=ProductResponse)
+def get_product(
+    product_id: int,
+    db: Session = Depends(get_db)
+):
+    """获取单个产品详情"""
+    product = db.query(Product).filter(Product.id == product_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="产品不存在")
+    return product
+
+# ==================== 订单管理 ====================
+
+@app.post("/orders", response_model=OrderResponse)
+def create_order(
+    order_data: OrderCreateRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """创建新订单并处理支付"""
+    # 生成订单号
+    order_number = f"ORD{datetime.now().strftime('%Y%m%d%H%M%S')}{random.randint(1000, 9999)}"
+    
+    # 计算总金额
+    total_amount = 0.0
+    order_items_data = []
+    
+    for item in order_data.items:
+        product = db.query(Product).filter(Product.id == item["product_id"]).first()
+        if not product:
+            raise HTTPException(status_code=404, detail=f"产品ID {item['product_id']} 不存在")
+        
+        # 解析价格（去除¥符号并转换为浮点数）
+        price_str = product.price.replace('¥', '')
+        price = float(price_str)
+        quantity = item.get("quantity", 1)
+        total_amount += price * quantity
+        
+        order_items_data.append({
+            "product_id": product.id,
+            "quantity": quantity,
+            "price": product.price
+        })
+    
+    # 创建订单
+    order = Order(
+        user_id=current_user.id,
+        order_number=order_number,
+        total_amount=f"¥{total_amount:.1f}",
+        payment_method=order_data.payment_method,
+        transaction_hash=order_data.transaction_hash,
+        wallet_address=order_data.wallet_address,
+        status='paid'  # 假设区块链交易已确认
+    )
+    db.add(order)
+    db.commit()
+    db.refresh(order)
+    
+    # 创建订单项
+    for item_data in order_items_data:
+        order_item = OrderItem(
+            order_id=order.id,
+            product_id=item_data["product_id"],
+            quantity=item_data["quantity"],
+            price=item_data["price"]
+        )
+        db.add(order_item)
+    
+    db.commit()
+    db.refresh(order)
+    
+    return order
+
+@app.get("/orders", response_model=List[OrderResponse])
+def get_user_orders(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """获取当前用户的所有订单"""
+    orders = db.query(Order).filter(Order.user_id == current_user.id).order_by(Order.created_at.desc()).all()
+    return orders
+
+@app.get("/orders/{order_id}", response_model=OrderResponse)
+def get_order(
+    order_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """获取订单详情"""
+    order = db.query(Order).filter(
+        Order.id == order_id,
+        Order.user_id == current_user.id
+    ).first()
+    
+    if not order:
+        raise HTTPException(status_code=404, detail="订单不存在")
+    
+    return order
 
 @app.get("/")
 def read_root():
