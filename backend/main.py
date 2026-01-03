@@ -1,4 +1,5 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException, Depends
+from fastapi.staticfiles import StaticFiles
 from PIL import Image
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
@@ -9,6 +10,8 @@ import os
 import base64
 import json
 import re
+import uuid
+from pathlib import Path
 from volcenginesdkarkruntime import Ark
 from typing import List
 
@@ -34,10 +37,19 @@ UNLIMITED_DETECTIONS = -1  # VIP用户无限检测次数（使用-1表示）
 DEFAULT_SEVERITY_VALUE = 30  # 默认严重程度值
 HOST = os.getenv("HOST", "0.0.0.0")
 
+# 图片存储配置
+IMAGES_DIR = Path(__file__).parent / "images"
+IMAGES_DIR.mkdir(exist_ok=True)
+ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif"}
+MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 10MB
+
 # 创建数据库表
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="AI 植物健康检测 API")
+
+# 静态文件服务（用于提供图片访问）
+app.mount("/images", StaticFiles(directory=str(IMAGES_DIR)), name="images")
 
 # 允许跨域请求
 app.add_middleware(
@@ -76,6 +88,47 @@ def reset_monthly_detections_if_needed(db: Session, membership: Membership) -> M
         db.commit()
         db.refresh(membership)
     return membership
+
+def check_vip_access(db: Session, user_id: int) -> bool:
+    """检查用户是否为VIP"""
+    membership = get_or_create_membership(db, user_id)
+    if not membership.is_vip:
+        raise HTTPException(
+            status_code=403,
+            detail="此功能仅限VIP用户使用，请升级为VIP获得完整功能访问权限。"
+        )
+    return True
+
+async def save_image(file: UploadFile) -> str:
+    """保存上传的图片并返回URL"""
+    # 验证文件扩展名
+    file_ext = Path(file.filename).suffix.lower()
+    if file_ext not in ALLOWED_IMAGE_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"不支持的文件格式。仅支持: {', '.join(ALLOWED_IMAGE_EXTENSIONS)}"
+        )
+    
+    # 读取文件内容
+    contents = await file.read()
+    
+    # 验证文件大小
+    if len(contents) > MAX_IMAGE_SIZE:
+        raise HTTPException(
+            status_code=400,
+            detail=f"文件过大。最大支持 {MAX_IMAGE_SIZE / 1024 / 1024}MB"
+        )
+    
+    # 生成唯一文件名
+    unique_filename = f"{uuid.uuid4()}{file_ext}"
+    file_path = IMAGES_DIR / unique_filename
+    
+    # 保存文件
+    with open(file_path, "wb") as f:
+        f.write(contents)
+    
+    # 返回可访问的URL路径
+    return f"/images/{unique_filename}"
 
 # ==================== 用户认证相关路由 ====================
 
@@ -475,7 +528,11 @@ async def predict_plant_health(
         raise HTTPException(status_code=400, detail="只支持 JPG 或 PNG 图片格式")
 
     try:
-        # 读取图片字节并转换为 PIL 对象
+        # 保存图片
+        image_url = await save_image(file)
+        
+        # 重新读取文件用于AI分析（因为之前读取过了）
+        await file.seek(0)
         image_data = await file.read()
         image = Image.open(io.BytesIO(image_data))
         
@@ -526,7 +583,8 @@ async def predict_plant_health(
             severity_value=result.severityValue,
             handling_suggestions=json.dumps(result.handling_suggestions, ensure_ascii=False),
             need_product=result.need_product,
-            plant_introduction=result.plant_introduction
+            plant_introduction=result.plant_introduction,
+            image_url=image_url  # 保存图片URL
         )
         db.add(diagnosis_history)
         
@@ -535,6 +593,10 @@ async def predict_plant_health(
         
         # 一起提交，确保原子性
         db.commit()
+        db.refresh(diagnosis_history)  # 刷新以获取生成的ID
+        
+        # 添加诊断ID到结果中
+        result.diagnosis_id = diagnosis_history.id
         
         return result
     except Exception as e:
@@ -549,7 +611,9 @@ async def get_diagnosis_history(
     skip: int = 0,
     limit: int = 20
 ):
-    """获取当前用户的诊断历史"""
+    """获取当前用户的诊断历史（仅VIP用户）"""
+    check_vip_access(db, current_user.id)
+    
     histories = db.query(DiagnosisHistory).filter(
         DiagnosisHistory.user_id == current_user.id
     ).order_by(DiagnosisHistory.created_at.desc()).offset(skip).limit(limit).all()
@@ -561,7 +625,9 @@ async def get_diagnosis_history_by_id(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """获取指定诊断历史详情"""
+    """获取指定诊断历史详情（仅VIP用户）"""
+    check_vip_access(db, current_user.id)
+    
     history = db.query(DiagnosisHistory).filter(
         DiagnosisHistory.id == history_id,
         DiagnosisHistory.user_id == current_user.id
@@ -598,7 +664,9 @@ async def get_my_plants(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """获取当前用户的所有植物"""
+    """获取当前用户的所有植物（仅VIP用户）"""
+    check_vip_access(db, current_user.id)
+    
     plants = db.query(MyPlant).filter(
         MyPlant.user_id == current_user.id
     ).order_by(MyPlant.created_at.desc()).all()
@@ -610,7 +678,9 @@ async def get_my_plant(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """获取指定植物详情"""
+    """获取指定植物详情（仅VIP用户）"""
+    check_vip_access(db, current_user.id)
+    
     plant = db.query(MyPlant).filter(
         MyPlant.id == plant_id,
         MyPlant.user_id == current_user.id
@@ -627,7 +697,29 @@ async def create_my_plant(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """创建新的植物记录"""
+    """创建新的植物记录（仅VIP用户）"""
+    check_vip_access(db, current_user.id)
+    
+    # 如果提供了diagnosis_id，验证并获取诊断历史信息
+    if plant.diagnosis_id:
+        diagnosis = db.query(DiagnosisHistory).filter(
+            DiagnosisHistory.id == plant.diagnosis_id,
+            DiagnosisHistory.user_id == current_user.id
+        ).first()
+        
+        if not diagnosis:
+            raise HTTPException(status_code=404, detail="诊断历史不存在")
+        
+        # 如果未提供植物信息，从诊断历史中获取
+        if not plant.plant_name:
+            plant.plant_name = diagnosis.plant_name
+        if not plant.scientific_name:
+            plant.scientific_name = diagnosis.scientific_name
+        if not plant.status:
+            plant.status = diagnosis.status
+        if not plant.image_url:
+            plant.image_url = diagnosis.image_url
+    
     # 计算下次浇水日期
     next_watering_date = None
     if plant.watering_frequency and plant.last_watered:
@@ -639,6 +731,7 @@ async def create_my_plant(
         scientific_name=plant.scientific_name,
         nickname=plant.nickname,
         status=plant.status,
+        last_diagnosis_id=plant.diagnosis_id,  # 绑定诊断历史
         image_url=plant.image_url,
         notes=plant.notes,
         watering_frequency=plant.watering_frequency,
@@ -672,7 +765,9 @@ async def update_my_plant(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """更新植物信息"""
+    """更新植物信息（仅VIP用户）"""
+    check_vip_access(db, current_user.id)
+    
     plant = db.query(MyPlant).filter(
         MyPlant.id == plant_id,
         MyPlant.user_id == current_user.id
@@ -722,7 +817,9 @@ async def delete_my_plant(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """删除植物"""
+    """删除植物（仅VIP用户）"""
+    check_vip_access(db, current_user.id)
+    
     plant = db.query(MyPlant).filter(
         MyPlant.id == plant_id,
         MyPlant.user_id == current_user.id
@@ -741,7 +838,9 @@ async def water_plant(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """记录浇水"""
+    """记录浇水（仅VIP用户）"""
+    check_vip_access(db, current_user.id)
+    
     plant = db.query(MyPlant).filter(
         MyPlant.id == plant_id,
         MyPlant.user_id == current_user.id
@@ -908,6 +1007,21 @@ async def create_reexamination_reminder(
     db.commit()
     db.refresh(new_reminder)
     return new_reminder
+
+# ==================== 图片上传相关路由 ====================
+
+@app.post("/upload-image")
+async def upload_image(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user)
+):
+    """上传植物图片（仅VIP用户）"""
+    # 注意：这里不需要VIP检查，因为上传图片主要用于诊断，非VIP用户也可以使用
+    # 如果需要限制，可以取消注释下面这行
+    # check_vip_access(db, current_user.id)
+    
+    image_url = await save_image(file)
+    return {"image_url": image_url, "message": "图片上传成功"}
 
 @app.get("/")
 def read_root():

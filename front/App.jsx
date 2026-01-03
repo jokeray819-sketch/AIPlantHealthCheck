@@ -25,6 +25,7 @@ function App() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [result, setResult] = useState(null);
+  const [currentDiagnosisId, setCurrentDiagnosisId] = useState(null); // 当前诊断ID
   const [loading, setLoading] = useState(false);
   
   // 新功能相关状态
@@ -448,6 +449,7 @@ function App() {
         }
       });
       setResult(response.data);
+      setCurrentDiagnosisId(response.data.diagnosis_id); // 保存诊断ID
       
       // 刷新会员状态以更新剩余检测次数
       await fetchMembershipStatus(token);
@@ -771,13 +773,19 @@ function App() {
                     scientific_name: result.scientific_name,
                     nickname: nickname || null,
                     status: result.status,
+                    diagnosis_id: currentDiagnosisId,  // 关联诊断历史
                     notes: result.problem_judgment
                   }, {
                     headers: { 'Authorization': `Bearer ${token}` }
                   });
                   alert('已保存到我的植物！');
                 } catch (error) {
-                  alert('保存失败: ' + (error.response?.data?.detail || error.message));
+                  if (error.response?.status === 403) {
+                    alert(error.response?.data?.detail || '此功能仅限VIP用户使用');
+                    setShowMembershipModal(true);
+                  } else {
+                    alert('保存失败: ' + (error.response?.data?.detail || error.message));
+                  }
                 }
               }}
               className="flex-1 bg-white text-primary border border-primary py-3 rounded-lg font-medium btn-shadow transition hover:bg-primary/5"
@@ -957,9 +965,14 @@ function App() {
         <h3 className="font-semibold text-dark mb-3">快捷入口</h3>
         <div className="grid grid-cols-4 gap-3 text-center">
           <button onClick={() => { 
-            if (isAuthenticated) { 
-              fetchMyPlants(); 
-              setShowMyPlantsPage(true); 
+            if (isAuthenticated) {
+              if (membershipStatus?.is_vip) {
+                fetchMyPlants(); 
+                setShowMyPlantsPage(true);
+              } else {
+                alert('此功能仅限VIP用户使用，请升级为VIP获得完整功能访问权限。');
+                setShowMembershipModal(true);
+              }
             } else { 
               alert('请先登录'); 
               setShowAuthModal(true); 
@@ -971,9 +984,14 @@ function App() {
             <span className="text-xs text-dark">我的植物</span>
           </button>
           <button onClick={() => { 
-            if (isAuthenticated) { 
-              fetchDiagnosisHistory(); 
-              setShowHistoryPage(true); 
+            if (isAuthenticated) {
+              if (membershipStatus?.is_vip) {
+                fetchDiagnosisHistory(); 
+                setShowHistoryPage(true);
+              } else {
+                alert('此功能仅限VIP用户使用，请升级为VIP获得完整功能访问权限。');
+                setShowMembershipModal(true);
+              }
             } else { 
               alert('请先登录'); 
               setShowAuthModal(true); 
@@ -1047,9 +1065,14 @@ function App() {
       <div className="bg-white rounded-lg overflow-hidden mb-6 card-shadow">
         <div className="divide-y divide-gray-100">
           <button onClick={() => { 
-            if (isAuthenticated) { 
-              fetchDiagnosisHistory(); 
-              setShowHistoryPage(true); 
+            if (isAuthenticated) {
+              if (membershipStatus?.is_vip) {
+                fetchDiagnosisHistory(); 
+                setShowHistoryPage(true);
+              } else {
+                alert('此功能仅限VIP用户使用，请升级为VIP获得完整功能访问权限。');
+                setShowMembershipModal(true);
+              }
             } else { 
               alert('请先登录'); 
               setShowAuthModal(true); 

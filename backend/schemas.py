@@ -34,6 +34,7 @@ class UserResponse(BaseModel):
 
 # 检测结果
 class DetectionResult(BaseModel):
+    diagnosis_id: int = None  # 诊断历史ID（新增）
     plant_name: str  # 植物名称
     scientific_name: str  # 学名
     status: str  # 健康状态
@@ -91,6 +92,7 @@ class MyPlantCreate(BaseModel):
     scientific_name: Optional[str] = None
     nickname: Optional[str] = None
     status: Optional[str] = None
+    diagnosis_id: Optional[int] = None  # 关联诊断历史ID
     image_url: Optional[str] = None
     notes: Optional[str] = None
     watering_frequency: Optional[int] = None  # Days
