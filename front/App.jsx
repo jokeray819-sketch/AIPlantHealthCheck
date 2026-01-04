@@ -13,6 +13,7 @@ const CKB_PAYMENT_RECIPIENT_ADDRESS = 'ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt
 // 支付汇率常量（测试环境简化汇率，生产环境应从实时API获取）
 const CNY_TO_WEI_RATE = 1000000000000000; // 1 CNY ≈ 0.001 ETH (简化测试汇率)
 const CNY_TO_CKB_SHANNONS_RATE = 100000000; // 1 CNY ≈ 1 CKB in shannons (简化测试汇率)
+const MIN_CKB_CAPACITY = 6100000000n; // 最小 CKB 容量: 61 CKB (in shannons)
 
 function App() {
   // CCC hooks for wallet connection
@@ -354,6 +355,8 @@ function App() {
         }
         
         const priceInShannons = BigInt(Math.floor(total * CNY_TO_CKB_SHANNONS_RATE));
+        // CKB 单元格有最小容量要求（61 CKB），确保发送的容量不低于此值
+        const capacityToSend = priceInShannons > MIN_CKB_CAPACITY ? priceInShannons : MIN_CKB_CAPACITY;
 
         // 获取收款地址的脚本
         const recipientAddress = await ccc.Address.fromString(CKB_PAYMENT_RECIPIENT_ADDRESS, client);
@@ -362,7 +365,7 @@ function App() {
         const tx = ccc.Transaction.from({
           outputs: [{
             lock: recipientAddress.script,
-            capacity: priceInShannons,
+            capacity: capacityToSend,
           }],
         });
         
@@ -611,6 +614,10 @@ function App() {
           throw new Error('请先连接CKB钱包');
         }
         
+        const capacityToSend = BigInt(pricesInCKB[selectedPlan]);
+        // CKB 单元格有最小容量要求（61 CKB），确保发送的容量不低于此值
+        const finalCapacity = capacityToSend > MIN_CKB_CAPACITY ? capacityToSend : MIN_CKB_CAPACITY;
+        
         // 获取收款地址的脚本
         const recipientAddress = await ccc.Address.fromString(CKB_PAYMENT_RECIPIENT_ADDRESS, client);
         
@@ -618,7 +625,7 @@ function App() {
         const tx = ccc.Transaction.from({
           outputs: [{
             lock: recipientAddress.script,
-            capacity: BigInt(pricesInCKB[selectedPlan]),
+            capacity: finalCapacity,
           }],
         });
         
