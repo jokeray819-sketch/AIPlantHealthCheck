@@ -1981,16 +1981,23 @@ function App() {
                   <div className="bg-blue-50 p-3 rounded-lg mb-3">
                     <p className="text-xs text-secondary">
                       <i className="fas fa-info-circle mr-1"></i>
-                      点击"连接钱包"后，系统会自动显示所有可用的钱包选项（包括JoyID和UTXO钱包等）
+                      点击"连接钱包"后，系统会自动显示所有可用的钱包选项（包括JoyID、SupeRISE、UTXO钱包等）
                     </p>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-3 gap-3">
                     <div className="border-2 rounded-lg p-3 text-center border-gray-200">
                       <div className="text-xl mb-1">
                         <i className="fas fa-smile"></i>
                       </div>
                       <h5 className="font-semibold text-dark text-xs">JoyID</h5>
                       <p className="text-xs text-medium mt-1">Web钱包</p>
+                    </div>
+                    <div className="border-2 rounded-lg p-3 text-center border-gray-200">
+                      <div className="text-xl mb-1">
+                        <i className="fas fa-rocket"></i>
+                      </div>
+                      <h5 className="font-semibold text-dark text-xs">SupeRISE</h5>
+                      <p className="text-xs text-medium mt-1">BTC & CKB</p>
                     </div>
                     <div className="border-2 rounded-lg p-3 text-center border-gray-200">
                       <div className="text-xl mb-1">
@@ -2095,7 +2102,7 @@ function App() {
                   </>
                 ) : (
                   <>
-                    <p>支付使用CKB钱包（支持JoyID、UTXO等多种钱包）</p>
+                    <p>支付使用CKB钱包（支持JoyID、SupeRISE、UTXO等多种钱包）</p>
                     <p className="mt-1">请确保您的钱包有足够的CKB余额</p>
                   </>
                 )}
@@ -2258,15 +2265,21 @@ function App() {
                   <div className="bg-blue-50 p-3 rounded-lg mb-3">
                     <p className="text-xs text-secondary">
                       <i className="fas fa-info-circle mr-1"></i>
-                      点击"连接钱包"后，系统会自动显示所有可用的钱包选项（包括JoyID和UTXO钱包等）
+                      点击"连接钱包"后，系统会自动显示所有可用的钱包选项（包括JoyID、SupeRISE、UTXO钱包等）
                     </p>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-3 gap-3">
                     <div className="border-2 rounded-lg p-3 text-center border-gray-200">
                       <div className="text-xl mb-1">
                         <i className="fas fa-smile"></i>
                       </div>
                       <h5 className="font-semibold text-dark text-xs">JoyID</h5>
+                    </div>
+                    <div className="border-2 rounded-lg p-3 text-center border-gray-200">
+                      <div className="text-xl mb-1">
+                        <i className="fas fa-rocket"></i>
+                      </div>
+                      <h5 className="font-semibold text-dark text-xs">SupeRISE</h5>
                     </div>
                     <div className="border-2 rounded-lg p-3 text-center border-gray-200">
                       <div className="text-xl mb-1">
@@ -2305,7 +2318,7 @@ function App() {
                   </>
                 ) : (
                   <>
-                    <p>支付使用CKB钱包（支持JoyID、UTXO等多种钱包）</p>
+                    <p>支付使用CKB钱包（支持JoyID、SupeRISE、UTXO等多种钱包）</p>
                     <p className="mt-1">请确保您的钱包有足够的CKB余额</p>
                   </>
                 )}
