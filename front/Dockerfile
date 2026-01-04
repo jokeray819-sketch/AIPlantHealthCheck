@@ -8,11 +8,14 @@ WORKDIR /app
 # 复制 package 文件
 COPY package*.json ./
 
-# 安装依赖
-RUN npm ci
+# 安装依赖（使用 npm ci 确保依赖版本一致）
+RUN npm ci --only=production=false
 
 # 复制源代码
 COPY . .
+
+# 设置环境变量为生产模式
+ENV NODE_ENV=production
 
 # 构建应用
 RUN npm run build

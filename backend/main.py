@@ -381,20 +381,36 @@ def ai_inference(image: Image.Image):
     print("----- AI 返回内容 -----")
     print(content)
     
+    def clean_json_string(json_str: str) -> str:
+        """清理 JSON 字符串中的尾随逗号，使其符合标准 JSON 格式"""
+        # 移除数组和对象中的尾随逗号
+        # 使用正则表达式移除在 ] 或 } 之前的逗号
+        # 匹配模式：逗号 + 可选空白 + ] 或 }
+        pattern = r',(\s*[}\]])'
+        cleaned = re.sub(pattern, r'\1', json_str)
+        
+        return cleaned
+    
     # 尝试解析 JSON，如果返回的内容包含 JSON，提取它
     try:
         # 方法1: 直接解析整个内容
-        result = json.loads(content)
+        cleaned_content = clean_json_string(content)
+        result = json.loads(cleaned_content)
         return result
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as e:
+        print(f"JSON 解析错误: {e}")
         # 方法2: 尝试从文本中提取 JSON 对象
-        json_match = re.search(r'\{[^{}]*"plant_name"[^{}]*\}', content, re.DOTALL)
+        # 使用更强大的正则表达式来匹配 JSON 对象
+        json_match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', content, re.DOTALL)
         if json_match:
             try:
-                result = json.loads(json_match.group())
+                json_str = json_match.group()
+                cleaned_json = clean_json_string(json_str)
+                result = json.loads(cleaned_json)
                 return result
-            except json.JSONDecodeError:
-                pass
+            except json.JSONDecodeError as e2:
+                print(f"提取的 JSON 解析错误: {e2}")
+                print(f"提取的 JSON 内容: {json_match.group()[:200]}...")
         
         # 方法3: 如果都失败了，返回默认结构
         print("警告: 无法解析 JSON，使用默认值")
