@@ -24,14 +24,17 @@ SupeRISE 是专为 Bitcoin (BTC) 和 Nervos CKB 资产管理设计的安全、�
 import { ccc } from "@ckb-ccc/connector-react";
 
 // 连接 SupeRISE 钱包
+// SupeRISE 使用标准 CKB 签名协议，因此使用 CKB SignerType
 const signer = new ccc.SignerCkbPublicKey(
   new ccc.ClientPublicTestnet(),
-  ccc.SignerType.WalletConnect || ccc.SignerType.CKB
+  ccc.SignerType.CKB
 );
 
 await signer.connect();
 const address = await signer.getAddressObjs();
 ```
+
+**注意**：SupeRISE 钱包兼容标准的 CKB 签名协议，因此在技术实现上使用 `ccc.SignerType.CKB`。用户在浏览器中安装 SupeRISE 扩展后，连接时会自动识别并使用 SupeRISE 钱包。
 
 ### 支持的功能
 

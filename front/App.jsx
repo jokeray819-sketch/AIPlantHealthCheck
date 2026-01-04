@@ -505,10 +505,10 @@ function App() {
         );
       } else if (selectedCkbWallet === 'superise') {
         // 使用CCC连接SupeRISE钱包（测试网）
-        // SupeRISE是一款支持BTC和CKB的多链钱包
+        // SupeRISE是一款支持BTC和CKB的多链钱包，使用标准CKB签名器
         signer = new ccc.SignerCkbPublicKey(
           new ccc.ClientPublicTestnet(),
-          ccc.SignerType.WalletConnect || ccc.SignerType.CKB
+          ccc.SignerType.CKB
         );
       } else {
         throw new Error('不支持的CKB钱包类型');
