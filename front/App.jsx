@@ -840,14 +840,14 @@ function App() {
       <div className="grid grid-cols-3 gap-3 mb-4">
         <button 
           onClick={() => galleryInputRef.current?.click()}
-          className="flex flex-col items-center justify-center bg-white border-2 border-primary text-primary p-4 rounded-lg btn-shadow transition hover:bg-primary/5"
+          className="flex flex-col items-center justify-center bg-white border-2 border-primary text-primary py-4 px-2 rounded-lg btn-shadow transition hover:bg-primary/5"
         >
           <i className="fas fa-image text-2xl mb-2"></i>
           <span className="text-sm font-medium">从相册选择</span>
         </button>
         <button 
           onClick={() => captureFileInputRef.current?.click()}
-          className="flex flex-col items-center justify-center bg-primary text-white p-4 rounded-lg btn-shadow transition hover:bg-primary/90"
+          className="flex flex-col items-center justify-center bg-primary text-white py-4 px-2 rounded-lg btn-shadow transition hover:bg-primary/90"
         >
           <i className="fas fa-camera text-2xl mb-2"></i>
           <span className="text-sm font-medium">拍照</span>
@@ -857,7 +857,7 @@ function App() {
             setPreview(null);
             setSelectedFile(null);
           }}
-          className="flex flex-col items-center justify-center bg-white border-2 border-gray-300 text-dark p-4 rounded-lg btn-shadow transition hover:bg-gray-50"
+          className="flex flex-col items-center justify-center bg-white border-2 border-gray-300 text-dark py-4 px-2 rounded-lg btn-shadow transition hover:bg-gray-50"
         >
           <i className="fas fa-redo text-2xl mb-2"></i>
           <span className="text-sm font-medium">重新选择</span>
