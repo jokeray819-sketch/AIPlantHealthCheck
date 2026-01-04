@@ -846,17 +846,11 @@ function App() {
           <i className="fas fa-image text-xl"></i>
         </button>
         <button 
-          onClick={() => {
-            if (preview) {
-              handleSubmit();
-            } else {
-              captureFileInputRef.current?.click();
-            }
-          }}
-          className="bg-primary text-white p-6 rounded-full btn-shadow text-2xl"
+          onClick={() => captureFileInputRef.current?.click()}
+          className="bg-gray-200 text-dark p-3 rounded-full"
           title="拍照"
         >
-          <i className="fas fa-camera"></i>
+          <i className="fas fa-camera text-xl"></i>
         </button>
         <button 
           onClick={() => {
@@ -869,6 +863,19 @@ function App() {
           <i className="fas fa-redo text-xl"></i>
         </button>
       </div>
+      
+      {/* 提交按钮 - 仅在有预览图时显示 */}
+      {preview && (
+        <div className="mb-4">
+          <button 
+            onClick={handleSubmit}
+            className="w-full bg-primary text-white py-4 px-6 rounded-lg flex items-center justify-center gap-2 btn-shadow transition hover:bg-primary/90 text-lg"
+          >
+            <i className="fas fa-check-circle text-xl"></i>
+            <span>开始检测</span>
+          </button>
+        </div>
+      )}
       
       {/* 相册选择输入框（无capture属性，允许选择相册） */}
       <input 
@@ -895,9 +902,11 @@ function App() {
       
       <p className="text-center text-sm text-medium">
         <i className="fas fa-image text-primary mr-1"></i>
-        点击左侧按钮从相册选择 | 
+        从相册选择 | 
         <i className="fas fa-camera text-primary mx-1"></i>
-        点击中间按钮拍照
+        拍照 | 
+        <i className="fas fa-redo text-primary mx-1"></i>
+        重置
       </p>
     </div>
   );
