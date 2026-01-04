@@ -837,30 +837,30 @@ function App() {
       </div>
       
       {/* 操作按钮 */}
-      <div className="flex justify-center gap-6 mb-4">
+      <div className="grid grid-cols-3 gap-3 mb-4">
         <button 
           onClick={() => galleryInputRef.current?.click()}
-          className="bg-gray-200 text-dark p-3 rounded-full"
-          title="从相册选择"
+          className="flex flex-col items-center justify-center bg-white border-2 border-primary text-primary p-4 rounded-lg btn-shadow transition hover:bg-primary/5"
         >
-          <i className="fas fa-image text-xl"></i>
+          <i className="fas fa-image text-2xl mb-2"></i>
+          <span className="text-sm font-medium">从相册选择</span>
         </button>
         <button 
           onClick={() => captureFileInputRef.current?.click()}
-          className="bg-gray-200 text-dark p-3 rounded-full"
-          title="拍照"
+          className="flex flex-col items-center justify-center bg-primary text-white p-4 rounded-lg btn-shadow transition hover:bg-primary/90"
         >
-          <i className="fas fa-camera text-xl"></i>
+          <i className="fas fa-camera text-2xl mb-2"></i>
+          <span className="text-sm font-medium">拍照</span>
         </button>
         <button 
           onClick={() => {
             setPreview(null);
             setSelectedFile(null);
           }}
-          className="bg-gray-200 text-dark p-3 rounded-full"
-          title="重新选择"
+          className="flex flex-col items-center justify-center bg-white border-2 border-gray-300 text-dark p-4 rounded-lg btn-shadow transition hover:bg-gray-50"
         >
-          <i className="fas fa-redo text-xl"></i>
+          <i className="fas fa-redo text-2xl mb-2"></i>
+          <span className="text-sm font-medium">重新选择</span>
         </button>
       </div>
       
@@ -899,15 +899,6 @@ function App() {
         accept="image/*"
         capture="environment"
       />
-      
-      <p className="text-center text-sm text-medium">
-        <i className="fas fa-image text-primary mr-1"></i>
-        从相册选择 | 
-        <i className="fas fa-camera text-primary mx-1"></i>
-        拍照 | 
-        <i className="fas fa-redo text-primary mx-1"></i>
-        重置
-      </p>
     </div>
   );
 
