@@ -77,6 +77,7 @@ function App() {
   // Refs for file inputs
   const fileInputRef = useRef(null);
   const captureFileInputRef = useRef(null);
+  const galleryInputRef = useRef(null); // For gallery selection in capture page
 
   // 同步CCC钱包连接状态
   useEffect(() => {
@@ -834,7 +835,7 @@ function App() {
       {/* 操作按钮 */}
       <div className="flex justify-center gap-6 mb-4">
         <button 
-          onClick={() => fileInputRef.current?.click()}
+          onClick={() => galleryInputRef.current?.click()}
           className="bg-gray-200 text-dark p-3 rounded-full"
           title="从相册选择"
         >
@@ -867,7 +868,7 @@ function App() {
       
       {/* 相册选择输入框（无capture属性，允许选择相册） */}
       <input 
-        ref={fileInputRef}
+        ref={galleryInputRef}
         type="file" 
         onChange={(e) => {
           handleFileChange(e);
