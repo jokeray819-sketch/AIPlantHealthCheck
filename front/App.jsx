@@ -5,7 +5,7 @@ import { ccc } from "@ckb-ccc/connector-react";
 // 常量定义
 const AI_ANALYSIS_DELAY = 1500; // AI分析页面显示时间（毫秒）
 //const BASE_URL = 'http://192.168.11.252:8000';
-const BASE_URL = 'http://121.41.75.171:8000';
+const BASE_URL = 'https://aiplant.render.ink';
 // 区块链支付配置（生产环境应从环境变量读取）
 const ETH_PAYMENT_RECIPIENT_ADDRESS = '0x84Ae0feD8a61E79920A9c01cb60D3c7da26Ea2A7'; // eth sepolia 收款地址
 const CKB_PAYMENT_RECIPIENT_ADDRESS = 'ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsqdamwzrffgc54ef48493nfd2sd0h4cjnxg4850up'; // ckb testnet 收款地址
@@ -837,30 +837,30 @@ function App() {
       </div>
       
       {/* 操作按钮 */}
-      <div className="flex justify-center gap-6 mb-4">
+      <div className="grid grid-cols-3 gap-3 mb-4">
         <button 
           onClick={() => galleryInputRef.current?.click()}
-          className="bg-gray-200 text-dark p-3 rounded-full"
+          className="flex flex-col items-center justify-center bg-white border-2 border-primary text-primary h-[60px] px-2 rounded-lg btn-shadow transition hover:bg-primary/5"
           title="从相册选择"
         >
-          <i className="fas fa-image text-xl"></i>
+          <i className="fas fa-image text-2xl"></i>
         </button>
         <button 
           onClick={() => captureFileInputRef.current?.click()}
-          className="bg-gray-200 text-dark p-3 rounded-full"
+          className="flex flex-col items-center justify-center bg-primary text-white h-[60px] px-2 rounded-lg btn-shadow transition hover:bg-primary/90"
           title="拍照"
         >
-          <i className="fas fa-camera text-xl"></i>
+          <i className="fas fa-camera text-2xl"></i>
         </button>
         <button 
           onClick={() => {
             setPreview(null);
             setSelectedFile(null);
           }}
-          className="bg-gray-200 text-dark p-3 rounded-full"
+          className="flex flex-col items-center justify-center bg-white border-2 border-gray-300 text-dark h-[60px] px-2 rounded-lg btn-shadow transition hover:bg-gray-50"
           title="重新选择"
         >
-          <i className="fas fa-redo text-xl"></i>
+          <i className="fas fa-redo text-2xl"></i>
         </button>
       </div>
       
@@ -899,15 +899,6 @@ function App() {
         accept="image/*"
         capture="environment"
       />
-      
-      <p className="text-center text-sm text-medium">
-        <i className="fas fa-image text-primary mr-1"></i>
-        从相册选择 | 
-        <i className="fas fa-camera text-primary mx-1"></i>
-        拍照 | 
-        <i className="fas fa-redo text-primary mx-1"></i>
-        重置
-      </p>
     </div>
   );
 
