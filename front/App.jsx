@@ -14,6 +14,10 @@ const CNY_TO_WEI_RATE = 1000000000000000; // 1 CNY ≈ 0.001 ETH (简化测试�
 const CNY_TO_CKB_SHANNONS_RATE = 100000000; // 1 CNY ≈ 1 CKB in shannons (简化测试汇率)
 
 function App() {
+  // CCC hooks for wallet connection
+  const { open: openConnector, disconnect, client, wallet, signerInfo } = ccc.useCcc();
+  const signer = ccc.useSigner();
+  
   // 页面导航状态
   const [currentPage, setCurrentPage] = useState('detection'); // 'detection', 'shop', 'profile'
   const [showCapturePage, setShowCapturePage] = useState(false); // 显示拍照/上传页面
@@ -72,6 +76,28 @@ function App() {
   // Refs for file inputs
   const fileInputRef = useRef(null);
   const captureFileInputRef = useRef(null);
+
+  // 同步CCC钱包连接状态
+  useEffect(() => {
+    const syncWalletStatus = async () => {
+      if (signer && wallet) {
+        try {
+          const addresses = await signer.getAddresses();
+          if (addresses && addresses.length > 0) {
+            setWalletAddress(addresses[0]);
+            setWalletConnected(true);
+          }
+        } catch (error) {
+          console.error('获取钱包地址失败:', error);
+        }
+      } else {
+        setWalletConnected(false);
+        setWalletAddress('');
+      }
+    };
+    
+    syncWalletStatus();
+  }, [signer, wallet]);
 
   // 检查是否已登录
   useEffect(() => {
@@ -322,26 +348,27 @@ function App() {
           params: [transactionParameters],
         });
       } else if (selectedWalletType === 'ckb') {
-        // CKB支付流程
-        const priceInCKB = BigInt(Math.floor(total * CNY_TO_CKB_SHANNONS_RATE)).toString();
-
-        if (window.ckbSigner) {
-          const signer = window.ckbSigner;
-          
-          const tx = ccc.Transaction.from({
-            outputs: [{
-              lock: await ccc.Address.fromString(PAYMENT_RECIPIENT_ADDRESS, signer.client).getScript(),
-              capacity: ccc.fixedPointFrom(priceInCKB),
-            }],
-          });
-          
-          await tx.completeInputsByCapacity(signer);
-          await tx.completeFeeBy(signer, 1000);
-          
-          txHash = await signer.sendTransaction(tx);
-        } else {
+        // CKB支付流程（使用CCC库）
+        if (!signer) {
           throw new Error('请先连接CKB钱包');
         }
+        
+        const priceInShannons = BigInt(Math.floor(total * CNY_TO_CKB_SHANNONS_RATE));
+
+        // 构建交易
+        const tx = ccc.Transaction.from({
+          outputs: [{
+            lock: await ccc.Address.fromString(PAYMENT_RECIPIENT_ADDRESS, client).getScript(),
+            capacity: priceInShannons,
+          }],
+        });
+        
+        // 完成交易（添加输入和找零）
+        await tx.completeInputsByCapacity(signer);
+        await tx.completeFeeBy(signer, 1000); // 1000 shannons/byte fee rate
+        
+        // 签名并发送交易
+        txHash = await signer.sendTransaction(tx);
       }
 
       console.log('交易哈希:', txHash);
@@ -437,6 +464,10 @@ function App() {
     setMyPlants([]);
     setReminders([]);
     setUnreadRemindersCount(0);
+    // 断开CKB钱包连接
+    if (disconnect) {
+      disconnect();
+    }
   };
 
   // 连接以太坊钱包
@@ -489,41 +520,26 @@ function App() {
   // 连接CKB钱包（使用CCC库）
   const connectCkbWallet = async () => {
     try {
-      let signer;
+      // 使用CCC的内置连接器打开钱包选择器
+      // 这会自动处理JoyID和UTXO钱包的连接
+      await openConnector();
       
-      if (selectedCkbWallet === 'joyid') {
-        // 使用CCC连接JoyID钱包（测试网）
-        signer = new ccc.SignerCkbPublicKey(
-          new ccc.ClientPublicTestnet(),
-          ccc.SignerType.JoyID
-        );
-      } else if (selectedCkbWallet === 'utxo') {
-        // 使用CCC连接UTXO钱包（如CKB官方钱包、Neuron等）（测试网）
-        signer = new ccc.SignerCkbPublicKey(
-          new ccc.ClientPublicTestnet(),
-          ccc.SignerType.CKB
-        );
-      } else {
-        throw new Error('不支持的CKB钱包类型');
+      // 等待用户选择钱包并连接
+      // signer会自动更新为已连接的钱包签名器
+      if (signer) {
+        const addresses = await signer.getAddresses();
+        if (addresses && addresses.length > 0) {
+          const addressStr = addresses[0];
+          setWalletAddress(addressStr);
+          setWalletConnected(true);
+          return addressStr;
+        }
       }
       
-      // 连接钱包
-      await signer.connect();
-      
-      // 获取地址
-      const address = await signer.getAddressObjs();
-      if (address && address.length > 0) {
-        const addressStr = address[0].toString();
-        setWalletAddress(addressStr);
-        setWalletConnected(true);
-        // 保存signer以便后续使用
-        window.ckbSigner = signer;
-        return addressStr;
-      }
+      return null;
     } catch (error) {
       console.error('连接CKB钱包失败:', error);
-      const walletName = selectedCkbWallet === 'joyid' ? 'JoyID' : 'UTXO';
-      alert(`连接${walletName}钱包失败，请重试\n` + (error.message || ''));
+      alert(`连接CKB钱包失败，请重试\n` + (error.message || ''));
       return null;
     }
   };
@@ -588,26 +604,24 @@ function App() {
         };
 
         // 使用CCC发送CKB交易
-        if (window.ckbSigner) {
-          const signer = window.ckbSigner;
-          
-          // 构建交易
-          const tx = ccc.Transaction.from({
-            outputs: [{
-              lock: await ccc.Address.fromString(PAYMENT_RECIPIENT_ADDRESS, signer.client).getScript(),
-              capacity: ccc.fixedPointFrom(pricesInCKB[selectedPlan]),
-            }],
-          });
-          
-          // 完成交易（添加输入和找零）
-          await tx.completeInputsByCapacity(signer);
-          await tx.completeFeeBy(signer, 1000); // 1000 shannons/byte fee rate
-          
-          // 签名并发送交易
-          txHash = await signer.sendTransaction(tx);
-        } else {
+        if (!signer) {
           throw new Error('请先连接CKB钱包');
         }
+        
+        // 构建交易
+        const tx = ccc.Transaction.from({
+          outputs: [{
+            lock: await ccc.Address.fromString(PAYMENT_RECIPIENT_ADDRESS, client).getScript(),
+            capacity: BigInt(pricesInCKB[selectedPlan]),
+          }],
+        });
+        
+        // 完成交易（添加输入和找零）
+        await tx.completeInputsByCapacity(signer);
+        await tx.completeFeeBy(signer, 1000); // 1000 shannons/byte fee rate
+        
+        // 签名并发送交易
+        txHash = await signer.sendTransaction(tx);
       }
 
       console.log('交易哈希:', txHash);
@@ -1925,30 +1939,22 @@ function App() {
               {/* CKB钱包类型选择 - 仅在选择CKB时显示 */}
               {selectedWalletType === 'ckb' && (
                 <div className="mb-6">
-                  <h4 className="font-semibold text-dark mb-3">选择CKB钱包</h4>
+                  <h4 className="font-semibold text-dark mb-3">支持的CKB钱包</h4>
+                  <div className="bg-blue-50 p-3 rounded-lg mb-3">
+                    <p className="text-xs text-secondary">
+                      <i className="fas fa-info-circle mr-1"></i>
+                      点击"连接钱包"后，系统会自动显示所有可用的钱包选项（包括JoyID和UTXO钱包等）
+                    </p>
+                  </div>
                   <div className="grid grid-cols-2 gap-3">
-                    <div 
-                      onClick={() => {
-                        setSelectedCkbWallet('joyid');
-                        setWalletConnected(false);
-                        setWalletAddress('');
-                      }}
-                      className={`border-2 rounded-lg p-3 cursor-pointer transition text-center ${selectedCkbWallet === 'joyid' ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-primary/50'}`}
-                    >
+                    <div className="border-2 rounded-lg p-3 text-center border-gray-200">
                       <div className="text-xl mb-1">
                         <i className="fas fa-smile"></i>
                       </div>
                       <h5 className="font-semibold text-dark text-xs">JoyID</h5>
                       <p className="text-xs text-medium mt-1">Web钱包</p>
                     </div>
-                    <div 
-                      onClick={() => {
-                        setSelectedCkbWallet('utxo');
-                        setWalletConnected(false);
-                        setWalletAddress('');
-                      }}
-                      className={`border-2 rounded-lg p-3 cursor-pointer transition text-center ${selectedCkbWallet === 'utxo' ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-primary/50'}`}
-                    >
+                    <div className="border-2 rounded-lg p-3 text-center border-gray-200">
                       <div className="text-xl mb-1">
                         <i className="fas fa-wallet"></i>
                       </div>
@@ -2051,7 +2057,7 @@ function App() {
                   </>
                 ) : (
                   <>
-                    <p>支付使用CKB钱包（{selectedCkbWallet === 'joyid' ? 'JoyID' : 'UTXO钱包'}）</p>
+                    <p>支付使用CKB钱包（支持JoyID、UTXO等多种钱包）</p>
                     <p className="mt-1">请确保您的钱包有足够的CKB余额</p>
                   </>
                 )}
@@ -2210,29 +2216,21 @@ function App() {
               {/* CKB钱包类型选择 */}
               {selectedWalletType === 'ckb' && (
                 <div className="mb-6">
-                  <h4 className="font-semibold text-dark mb-3">选择CKB钱包</h4>
+                  <h4 className="font-semibold text-dark mb-3">支持的CKB钱包</h4>
+                  <div className="bg-blue-50 p-3 rounded-lg mb-3">
+                    <p className="text-xs text-secondary">
+                      <i className="fas fa-info-circle mr-1"></i>
+                      点击"连接钱包"后，系统会自动显示所有可用的钱包选项（包括JoyID和UTXO钱包等）
+                    </p>
+                  </div>
                   <div className="grid grid-cols-2 gap-3">
-                    <div 
-                      onClick={() => {
-                        setSelectedCkbWallet('joyid');
-                        setWalletConnected(false);
-                        setWalletAddress('');
-                      }}
-                      className={`border-2 rounded-lg p-3 cursor-pointer transition text-center ${selectedCkbWallet === 'joyid' ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-primary/50'}`}
-                    >
+                    <div className="border-2 rounded-lg p-3 text-center border-gray-200">
                       <div className="text-xl mb-1">
                         <i className="fas fa-smile"></i>
                       </div>
                       <h5 className="font-semibold text-dark text-xs">JoyID</h5>
                     </div>
-                    <div 
-                      onClick={() => {
-                        setSelectedCkbWallet('utxo');
-                        setWalletConnected(false);
-                        setWalletAddress('');
-                      }}
-                      className={`border-2 rounded-lg p-3 cursor-pointer transition text-center ${selectedCkbWallet === 'utxo' ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-primary/50'}`}
-                    >
+                    <div className="border-2 rounded-lg p-3 text-center border-gray-200">
                       <div className="text-xl mb-1">
                         <i className="fas fa-wallet"></i>
                       </div>
@@ -2269,7 +2267,7 @@ function App() {
                   </>
                 ) : (
                   <>
-                    <p>支付使用CKB钱包（{selectedCkbWallet === 'joyid' ? 'JoyID' : 'UTXO钱包'}）</p>
+                    <p>支付使用CKB钱包（支持JoyID、UTXO等多种钱包）</p>
                     <p className="mt-1">请确保您的钱包有足够的CKB余额</p>
                   </>
                 )}
