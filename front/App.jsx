@@ -64,7 +64,7 @@ function App() {
   const [showMembershipModal, setShowMembershipModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState('monthly');
   const [selectedWalletType, setSelectedWalletType] = useState('eth'); // 'eth' or 'ckb'
-  const [selectedCkbWallet, setSelectedCkbWallet] = useState('joyid'); // 'joyid' or 'utxo'
+  const [selectedCkbWallet, setSelectedCkbWallet] = useState('joyid'); // 'joyid', 'utxo', or 'superise'
   const [walletConnected, setWalletConnected] = useState(false);
   const [walletAddress, setWalletAddress] = useState('');
   const [purchaseLoading, setPurchaseLoading] = useState(false);
@@ -503,6 +503,13 @@ function App() {
           new ccc.ClientPublicTestnet(),
           ccc.SignerType.CKB
         );
+      } else if (selectedCkbWallet === 'superise') {
+        // 使用CCC连接SupeRISE钱包（测试网）
+        // SupeRISE是一款支持BTC和CKB的多链钱包
+        signer = new ccc.SignerCkbPublicKey(
+          new ccc.ClientPublicTestnet(),
+          ccc.SignerType.WalletConnect || ccc.SignerType.CKB
+        );
       } else {
         throw new Error('不支持的CKB钱包类型');
       }
@@ -522,7 +529,12 @@ function App() {
       }
     } catch (error) {
       console.error('连接CKB钱包失败:', error);
-      const walletName = selectedCkbWallet === 'joyid' ? 'JoyID' : 'UTXO';
+      const walletNames = {
+        'joyid': 'JoyID',
+        'utxo': 'UTXO',
+        'superise': 'SupeRISE'
+      };
+      const walletName = walletNames[selectedCkbWallet] || 'CKB';
       alert(`连接${walletName}钱包失败，请重试\n` + (error.message || ''));
       return null;
     }
@@ -1926,7 +1938,7 @@ function App() {
               {selectedWalletType === 'ckb' && (
                 <div className="mb-6">
                   <h4 className="font-semibold text-dark mb-3">选择CKB钱包</h4>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-3 gap-3">
                     <div 
                       onClick={() => {
                         setSelectedCkbWallet('joyid');
@@ -1954,6 +1966,20 @@ function App() {
                       </div>
                       <h5 className="font-semibold text-dark text-xs">UTXO钱包</h5>
                       <p className="text-xs text-medium mt-1">Neuron等</p>
+                    </div>
+                    <div 
+                      onClick={() => {
+                        setSelectedCkbWallet('superise');
+                        setWalletConnected(false);
+                        setWalletAddress('');
+                      }}
+                      className={`border-2 rounded-lg p-3 cursor-pointer transition text-center ${selectedCkbWallet === 'superise' ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-primary/50'}`}
+                    >
+                      <div className="text-xl mb-1">
+                        <i className="fas fa-shield-alt"></i>
+                      </div>
+                      <h5 className="font-semibold text-dark text-xs">SupeRISE</h5>
+                      <p className="text-xs text-medium mt-1">BTC & CKB</p>
                     </div>
                   </div>
                 </div>
@@ -2211,7 +2237,7 @@ function App() {
               {selectedWalletType === 'ckb' && (
                 <div className="mb-6">
                   <h4 className="font-semibold text-dark mb-3">选择CKB钱包</h4>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-3 gap-3">
                     <div 
                       onClick={() => {
                         setSelectedCkbWallet('joyid');
@@ -2224,6 +2250,7 @@ function App() {
                         <i className="fas fa-smile"></i>
                       </div>
                       <h5 className="font-semibold text-dark text-xs">JoyID</h5>
+                      <p className="text-xs text-medium mt-1">Web钱包</p>
                     </div>
                     <div 
                       onClick={() => {
@@ -2237,6 +2264,21 @@ function App() {
                         <i className="fas fa-wallet"></i>
                       </div>
                       <h5 className="font-semibold text-dark text-xs">UTXO钱包</h5>
+                      <p className="text-xs text-medium mt-1">Neuron等</p>
+                    </div>
+                    <div 
+                      onClick={() => {
+                        setSelectedCkbWallet('superise');
+                        setWalletConnected(false);
+                        setWalletAddress('');
+                      }}
+                      className={`border-2 rounded-lg p-3 cursor-pointer transition text-center ${selectedCkbWallet === 'superise' ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-primary/50'}`}
+                    >
+                      <div className="text-xl mb-1">
+                        <i className="fas fa-shield-alt"></i>
+                      </div>
+                      <h5 className="font-semibold text-dark text-xs">SupeRISE</h5>
+                      <p className="text-xs text-medium mt-1">BTC & CKB</p>
                     </div>
                   </div>
                 </div>
