@@ -213,3 +213,17 @@ class OrderResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+class WalletConnectRequest(BaseModel):
+    wallet_address: str
+    wallet_provider: str = Field(..., description="Wallet app, e.g. superise, joyid")
+    wallet_chain: str = Field(..., description="Chain type: eth, ckb")
+    wallet_public_key: Optional[str] = None
+    username: Optional[str] = None
+    email: Optional[EmailStr] = None
+
+class WalletConnectResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserResponse
+

@@ -10,6 +10,11 @@ class User(Base):
     username = Column(String(50), unique=True, index=True, nullable=False)
     email = Column(String(100), unique=True, index=True, nullable=False)
     hashed_password = Column(String(255), nullable=False)
+    wallet_address = Column(String(200), unique=True)
+    wallet_provider = Column(String(50))
+    wallet_chain = Column(String(20))
+    wallet_public_key = Column(String(255))
+    last_wallet_login = Column(DateTime)
     created_at = Column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
     updated_at = Column(DateTime, server_default=text('CURRENT_TIMESTAMP'), onupdate=text('CURRENT_TIMESTAMP'))
     
