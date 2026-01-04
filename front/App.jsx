@@ -77,6 +77,7 @@ function App() {
   // Refs for file inputs
   const fileInputRef = useRef(null);
   const captureFileInputRef = useRef(null);
+  const galleryInputRef = useRef(null); // For gallery selection in capture page
 
   // 同步CCC钱包连接状态
   useEffect(() => {
@@ -675,6 +676,10 @@ function App() {
       setSelectedFile(file);
       setPreview(URL.createObjectURL(file));
       setResult(null);
+      // If uploaded from main page, show capture page for preview
+      if (!showCapturePage) {
+        setShowCapturePage(true);
+      }
     }
   };
 
@@ -780,7 +785,7 @@ function App() {
           <span>立即拍照检测</span>
         </button>
         <button 
-          onClick={() => setShowCapturePage(true)}
+          onClick={() => fileInputRef.current?.click()}
           className="bg-white text-primary border border-primary py-5 px-6 rounded-lg flex items-center justify-center gap-2 btn-shadow transition hover:bg-primary/5 text-lg"
         >
           <i className="fas fa-upload text-2xl"></i>
@@ -834,22 +839,18 @@ function App() {
       {/* 操作按钮 */}
       <div className="flex justify-center gap-6 mb-4">
         <button 
-          onClick={() => captureFileInputRef.current?.click()}
+          onClick={() => galleryInputRef.current?.click()}
           className="bg-gray-200 text-dark p-3 rounded-full"
+          title="从相册选择"
         >
           <i className="fas fa-image text-xl"></i>
         </button>
         <button 
-          onClick={() => {
-            if (preview) {
-              handleSubmit();
-            } else {
-              captureFileInputRef.current?.click();
-            }
-          }}
-          className="bg-primary text-white p-6 rounded-full btn-shadow text-2xl"
+          onClick={() => captureFileInputRef.current?.click()}
+          className="bg-gray-200 text-dark p-3 rounded-full"
+          title="拍照"
         >
-          <i className="fas fa-camera"></i>
+          <i className="fas fa-camera text-xl"></i>
         </button>
         <button 
           onClick={() => {
@@ -857,11 +858,37 @@ function App() {
             setSelectedFile(null);
           }}
           className="bg-gray-200 text-dark p-3 rounded-full"
+          title="重新选择"
         >
           <i className="fas fa-redo text-xl"></i>
         </button>
       </div>
       
+      {/* 提交按钮 - 仅在有预览图时显示 */}
+      {preview && (
+        <div className="mb-4">
+          <button 
+            onClick={handleSubmit}
+            className="w-full bg-primary text-white py-4 px-6 rounded-lg flex items-center justify-center gap-2 btn-shadow transition hover:bg-primary/90 text-lg"
+          >
+            <i className="fas fa-check-circle text-xl"></i>
+            <span>开始检测</span>
+          </button>
+        </div>
+      )}
+      
+      {/* 相册选择输入框（无capture属性，允许选择相册） */}
+      <input 
+        ref={galleryInputRef}
+        type="file" 
+        onChange={(e) => {
+          handleFileChange(e);
+        }}
+        className="hidden"
+        accept="image/*"
+      />
+      
+      {/* 拍照输入框（有capture属性，直接打开相机） */}
       <input 
         ref={captureFileInputRef}
         type="file" 
@@ -873,7 +900,14 @@ function App() {
         capture="environment"
       />
       
-      <p className="text-center text-sm text-medium">点击相机图标进行拍照或从相册选择</p>
+      <p className="text-center text-sm text-medium">
+        <i className="fas fa-image text-primary mr-1"></i>
+        从相册选择 | 
+        <i className="fas fa-camera text-primary mx-1"></i>
+        拍照 | 
+        <i className="fas fa-redo text-primary mx-1"></i>
+        重置
+      </p>
     </div>
   );
 
