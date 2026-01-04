@@ -2274,18 +2274,21 @@ function App() {
                         <i className="fas fa-smile"></i>
                       </div>
                       <h5 className="font-semibold text-dark text-xs">JoyID</h5>
+                      <p className="text-xs text-medium mt-1">Web钱包</p>
                     </div>
                     <div className="border-2 rounded-lg p-3 text-center border-gray-200">
                       <div className="text-xl mb-1">
                         <i className="fas fa-rocket"></i>
                       </div>
                       <h5 className="font-semibold text-dark text-xs">SupeRISE</h5>
+                      <p className="text-xs text-medium mt-1">BTC & CKB</p>
                     </div>
                     <div className="border-2 rounded-lg p-3 text-center border-gray-200">
                       <div className="text-xl mb-1">
                         <i className="fas fa-wallet"></i>
                       </div>
                       <h5 className="font-semibold text-dark text-xs">UTXO钱包</h5>
+                      <p className="text-xs text-medium mt-1">Neuron等</p>
                     </div>
                   </div>
                 </div>
