@@ -3,7 +3,7 @@ from fastapi.staticfiles import StaticFiles
 from PIL import Image
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from datetime import timedelta, date, datetime
+from datetime import timedelta, date, datetime, timezone
 import io
 import random
 import os
@@ -136,6 +136,33 @@ async def save_image(file: UploadFile) -> str:
     
     # 返回可访问的URL路径
     return f"/images/{unique_filename}"
+
+# ==================== 健康检查接口 ====================
+
+@app.get("/health")
+def health_check(db: Session = Depends(get_db)):
+    """
+    健康检查接口
+    用于监控系统检查应用程序和数据库连接状态
+    """
+    try:
+        # 检查数据库连接（带超时保护）
+        db.execute("SELECT 1")
+        
+        return {
+            "status": "healthy",
+            "service": "AI Plant Health Check API",
+            "database": "connected",
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "service": "AI Plant Health Check API",
+            "database": "disconnected",
+            "error": str(e),
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
 
 # ==================== 用户认证相关路由 ====================
 

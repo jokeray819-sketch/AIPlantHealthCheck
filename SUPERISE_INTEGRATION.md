@@ -2,7 +2,7 @@
 
 ## 概述
 
-本系统已成功集成 SupeRISE 钱包，SupeRISE 是一款支持 Bitcoin 和 Nervos CKB 的安全多链钱包。用户现在可以使用 SupeRISE 钱包进行会员购买和商品支付。
+本系统已成功集成 SupeRISE 钱包支持，SupeRISE 是一款支持 Bitcoin 和 Nervos CKB 的安全多链钱包。用户现在可以使用 SupeRISE 钱包进行会员购买和商品支付。
 
 ## SupeRISE 介绍
 
@@ -18,52 +18,70 @@ SupeRISE 是专为 Bitcoin (BTC) 和 Nervos CKB 资产管理设计的安全、�
 
 ### 前端集成
 
-系统使用 `@ckb-ccc/connector-react` 库来集成 SupeRISE 钱包：
+系统使用 `@ckb-ccc/connector-react` 库的自动钱包检测功能来支持 SupeRISE 钱包：
 
 ```javascript
 import { ccc } from "@ckb-ccc/connector-react";
 
-// 连接 SupeRISE 钱包
-// SupeRISE 使用标准 CKB 签名协议，因此使用 CKB SignerType
-const signer = new ccc.SignerCkbPublicKey(
-  new ccc.ClientPublicTestnet(),
-  ccc.SignerType.CKB
-);
+// 使用 CCC Provider 包装应用
+<ccc.Provider>
+  <App />
+</ccc.Provider>
 
-await signer.connect();
-const address = await signer.getAddressObjs();
+// 在组件中使用 CCC hooks
+const { open: openConnector } = ccc.useCcc();
+const signer = ccc.useSigner();
+
+// 连接钱包（自动检测所有可用钱包，包括 SupeRISE）
+await openConnector();
 ```
 
-**注意**：SupeRISE 钱包兼容标准的 CKB 签名协议，因此在技术实现上使用 `ccc.SignerType.CKB`。用户在浏览器中安装 SupeRISE 扩展后，连接时会自动识别并使用 SupeRISE 钱包。
+**自动检测机制**：当用户点击"连接钱包"按钮时，CCC 连接器会自动检测浏览器中安装的所有 CKB 兼容钱包，包括：
+- JoyID
+- UTXO 钱包（Neuron 等）
+- **SupeRISE** ✨（如果已安装）
+- 其他 CKB 兼容钱包
+
+用户可以从弹出的钱包选择器中选择 SupeRISE 进行连接。
 
 ### 支持的功能
 
 1. **会员购买**
-   - 用户可以选择 CKB 钱包类型为 SupeRISE
+   - 用户点击"连接钱包"选择 CKB 支付方式
+   - 系统自动显示所有可用的 CKB 钱包（包括 SupeRISE）
    - 支持月度、季度、年度会员套餐
    - 使用 CKB 代币支付
 
 2. **商品购买**
-   - 在购物车结账时可选择 SupeRISE 钱包
+   - 在购物车结账时选择 CKB 支付方式
+   - 从可用钱包中选择 SupeRISE
    - 支持 CKB 代币支付商品
 
 ### 用户界面
 
-在会员购买和商品结账页面，用户可以看到三种 CKB 钱包选项：
+在会员购买和商品结账页面，用户选择 CKB 支付方式后：
 
-1. **JoyID** - Web 钱包
-2. **UTXO 钱包** - Neuron 等桌面钱包
-3. **SupeRISE** - BTC & CKB 多链钱包 ✨ 新增
+1. 点击"连接钱包"按钮
+2. 系统显示所有可用的 CKB 钱包选择器
+3. 如果用户已安装 SupeRISE 浏览器扩展，它会出现在钱包列表中
+4. 用户选择 SupeRISE 并授权连接
+5. 连接成功后即可进行支付
 
 ## 使用流程
+
+### 前提条件
+
+1. 在浏览器中安装 SupeRISE 钱包扩展
+2. 确保钱包已切换到 CKB Testnet（测试网）
+3. 账户中有足够的测试网 CKB 代币
 
 ### 购买会员
 
 1. 进入"我的"页面
 2. 点击"升级为VIP"
 3. 选择支付方式为"CKB"
-4. 在 CKB 钱包类型中选择"SupeRISE"
-5. 点击"连接钱包"
+4. 点击"连接钱包"
+5. 在弹出的钱包选择器中选择"SupeRISE"
 6. 在 SupeRISE 钱包中授权连接
 7. 选择会员套餐
 8. 确认支付
@@ -74,8 +92,8 @@ const address = await signer.getAddressObjs();
 2. 点击购物车图标
 3. 点击"去结算"
 4. 选择支付方式为"CKB"
-5. 在 CKB 钱包类型中选择"SupeRISE"
-6. 点击"连接钱包"
+5. 点击"连接钱包"
+6. 在弹出的钱包选择器中选择"SupeRISE"
 7. 在 SupeRISE 钱包中授权连接
 8. 确认支付
 
@@ -107,15 +125,27 @@ const address = await signer.getAddressObjs();
 
 ## 故障排除
 
-### 连接失败
+### SupeRISE 未出现在钱包列表中
 
-**问题**：无法连接 SupeRISE 钱包
+**问题**：点击"连接钱包"后，钱包选择器中没有 SupeRISE 选项
 
 **解决方案**：
-1. 确保已安装最新版本的 SupeRISE 钱包
-2. 检查钱包是否已切换到测试网络
+1. 确保已安装 SupeRISE 浏览器扩展
+2. 检查扩展是否已启用
+3. 刷新页面后重试
+4. 检查 SupeRISE 是否支持 CKB 网络（需要支持 CKB Testnet）
+5. 尝试重新安装 SupeRISE 扩展
+
+### 连接失败
+
+**问题**：选择 SupeRISE 后无法连接
+
+**解决方案**：
+1. 确保 SupeRISE 钱包已解锁
+2. 检查钱包是否已切换到测试网络（CKB Testnet）
 3. 尝试刷新页面后重新连接
 4. 检查浏览器控制台是否有错误信息
+5. 尝试断开其他已连接的钱包
 
 ### 交易失败
 

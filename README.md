@@ -34,7 +34,7 @@ AIPlantHealthCheck/
   - 免费用户：每月5次检测
   - VIP会员：无限次检测
   - 支持 MetaMask (以太坊) 钱包支付
-  - 支持 CKB 钱包支付（JoyID、UTXO、SupeRISE）
+  - 支持 CKB 钱包支付（自动检测 JoyID、UTXO、SupeRISE 等）
 
 ## 快速开始
 
@@ -160,13 +160,17 @@ npm run dev
 - 在 Sepolia 测试网进行交易
 
 #### Nervos CKB
+系统自动检测并支持所有 CKB 兼容钱包，包括：
 - **JoyID** - Web 端钱包
 - **UTXO 钱包** - Neuron 等桌面钱包
 - **SupeRISE** - 支持 BTC & CKB 的多链钱包 ✨
-- 在 CKB Testnet 测试网进行交易
+- 其他 CKB 兼容钱包
+
+在 CKB Testnet 测试网进行交易。点击"连接钱包"后，系统会自动显示所有已安装的可用钱包供您选择。
 
 详细说明请参考：
 - [会员功能文档](MEMBERSHIP_FEATURE.md)
+- [CKB 钱包集成文档](WALLET_INTEGRATION.md)
 - [SupeRISE 集成文档](SUPERISE_INTEGRATION.md)
 
 ## 开发说明
