@@ -10,14 +10,15 @@ export default defineConfig({
     open: true
   },
   define: {
-    'process.env': {},
+    'process.env': JSON.stringify({}),
     'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
     'process.platform': JSON.stringify('browser'),
     'process.version': JSON.stringify('v16.0.0'),
+    'process.browser': JSON.stringify(true),
     global: 'globalThis',
     // 禁用 Lit 开发模式警告（仅在开发模式下）
     ...(process.env.NODE_ENV === 'production' ? {
-      'process.env.LIT_DEV_MODE': 'false',
+      'process.env.LIT_DEV_MODE': JSON.stringify('false'),
     } : {}),
   },
   resolve: {
@@ -29,7 +30,12 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    include: ['process'],
+    include: ['process', 'process/browser'],
+    esbuildOptions: {
+      define: {
+        global: 'globalThis',
+      },
+    },
   },
   build: {
     // 生产构建时最小化输出
@@ -38,6 +44,14 @@ export default defineConfig({
       compress: {
         drop_console: false, // 保留 console，但可以设置为 true 来移除所有 console
         drop_debugger: true,
+      },
+    },
+    commonjsOptions: {
+      include: [/process/, /node_modules/],
+    },
+    rollupOptions: {
+      output: {
+        manualChunks: undefined,
       },
     },
   },

@@ -10,6 +10,20 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- 确保 process 在运行时可用 -->
+    <script>
+      if (typeof process === 'undefined') {
+        window.process = {
+          env: {},
+          platform: 'browser',
+          version: 'v16.0.0',
+          browser: true
+        };
+      }
+      if (typeof global === 'undefined') {
+        window.global = window;
+      }
+    </script>
     <script type="module" src="/main.jsx"></script>
   </body>
 </html>

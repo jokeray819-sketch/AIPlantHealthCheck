@@ -5,7 +5,7 @@ import { ccc } from "@ckb-ccc/connector-react";
 // 常量定义
 const AI_ANALYSIS_DELAY = 1500; // AI分析页面显示时间（毫秒）
 //const BASE_URL = 'http://192.168.11.252:8000';
-const BASE_URL = 'http://127.0.0.1:8000';
+const BASE_URL = 'http://121.41.75.171:8000';
 // 区块链支付配置（生产环境应从环境变量读取）
 const PAYMENT_RECIPIENT_ADDRESS = '0x84Ae0feD8a61E79920A9c01cb60D3c7da26Ea2A7'; // eth sepolia 收款地址
 
