@@ -22,7 +22,8 @@ from schemas import (
     MembershipResponse, MembershipPurchaseRequest, MembershipPurchaseResponse,
     DiagnosisHistoryResponse, MyPlantCreate, MyPlantUpdate, MyPlantResponse,
     ReminderCreate, ReminderUpdate, ReminderResponse,
-    ProductResponse, OrderCreateRequest, OrderResponse, OrderItemResponse
+    ProductResponse, OrderCreateRequest, OrderResponse, OrderItemResponse,
+    WalletConnectRequest, WalletConnectResponse
 )
 from auth import (
     get_password_hash,
@@ -1251,6 +1252,65 @@ def get_order(
         raise HTTPException(status_code=404, detail="订单不存在")
     
     return order
+
+@app.post("/wallets/connect", response_model=WalletConnectResponse)
+async def connect_wallet(
+    payload: WalletConnectRequest,
+    db: Session = Depends(get_db)
+):
+    wallet_address = payload.wallet_address.strip().lower()
+    if not wallet_address:
+        raise HTTPException(status_code=400, detail="钱包地址不能为空")
+
+    user = db.query(User).filter(User.wallet_address == wallet_address).first()
+
+    if not user:
+        username = payload.username or f"{payload.wallet_provider}_{wallet_address[-6:]}"
+        email = payload.email or f"{wallet_address}@wallet.local"
+        existing_username = db.query(User).filter(User.username == username).first()
+        if existing_username:
+            username = f"{username}_{uuid.uuid4().hex[:4]}"
+        existing_email = db.query(User).filter(User.email == email).first()
+        if existing_email:
+            email = f"{wallet_address}@auto.local"
+
+        user = User(
+            username=username,
+            email=email,
+            hashed_password=get_password_hash(uuid.uuid4().hex),
+            wallet_address=wallet_address,
+            wallet_provider=payload.wallet_provider,
+            wallet_chain=payload.wallet_chain,
+            wallet_public_key=payload.wallet_public_key,
+            last_wallet_login=datetime.utcnow()
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+        membership = Membership(
+            user_id=user.id,
+            is_vip=False,
+            monthly_detections=0
+        )
+        db.add(membership)
+    else:
+        user.wallet_provider = payload.wallet_provider
+        user.wallet_chain = payload.wallet_chain
+        user.wallet_public_key = payload.wallet_public_key
+        user.last_wallet_login = datetime.utcnow()
+
+    db.commit()
+
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.username}, expires_delta=access_token_expires
+    )
+
+    return WalletConnectResponse(
+        access_token=access_token,
+        user=user
+    )
 
 @app.get("/")
 def read_root():

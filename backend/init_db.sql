@@ -26,3 +26,9 @@ USE plant_health_db;
 --     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
 --     INDEX idx_user_id (user_id)
 -- ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+ALTER TABLE users ADD COLUMN wallet_address VARCHAR(200) UNIQUE;
+ALTER TABLE users ADD COLUMN wallet_provider VARCHAR(50);
+ALTER TABLE users ADD COLUMN wallet_chain VARCHAR(20);
+ALTER TABLE users ADD COLUMN wallet_public_key VARCHAR(255);
+ALTER TABLE users ADD COLUMN last_wallet_login DATETIME;

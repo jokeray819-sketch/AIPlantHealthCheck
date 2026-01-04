@@ -5,7 +5,7 @@ import { ccc } from "@ckb-ccc/connector-react";
 // 常量定义
 const AI_ANALYSIS_DELAY = 1500; // AI分析页面显示时间（毫秒）
 //const BASE_URL = 'http://192.168.11.252:8000';
-const BASE_URL = 'https://aiplant.render.ink';
+const BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL || 'https://aiplant.render.ink';
 // 区块链支付配置（生产环境应从环境变量读取）
 const ETH_PAYMENT_RECIPIENT_ADDRESS = '0x84Ae0feD8a61E79920A9c01cb60D3c7da26Ea2A7'; // eth sepolia 收款地址
 const CKB_PAYMENT_RECIPIENT_ADDRESS = 'ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsqdamwzrffgc54ef48493nfd2sd0h4cjnxg4850up'; // ckb testnet 收款地址
@@ -73,6 +73,7 @@ function App() {
   const [walletConnected, setWalletConnected] = useState(false);
   const [walletAddress, setWalletAddress] = useState('');
   const [purchaseLoading, setPurchaseLoading] = useState(false);
+  const [isWalletAutoLoginInProgress, setIsWalletAutoLoginInProgress] = useState(false);
 
   // Refs for file inputs
   const fileInputRef = useRef(null);
@@ -122,6 +123,42 @@ function App() {
       fetchProducts();
     }
   }, [currentPage]);
+
+  // 自动通过钱包登录
+  useEffect(() => {
+    const handleWalletAutoLogin = async () => {
+      if (!signer || !wallet || isWalletAutoLoginInProgress || isAuthenticated) {
+        return;
+      }
+      try {
+        setIsWalletAutoLoginInProgress(true);
+        const addresses = await signer.getAddresses();
+        if (!addresses || addresses.length === 0) {
+          return;
+        }
+        const address = addresses[0];
+        const token = localStorage.getItem('token');
+        if (token && walletAddress === address) {
+          return;
+        }
+        const response = await axios.post(`${BASE_URL}/wallets/connect`, {
+          wallet_address: address,
+          wallet_provider: wallet?.name || 'superise',
+          wallet_chain: wallet?.chain || selectedWalletType || 'ckb',
+          wallet_public_key: signerInfo?.publicKey || null,
+        });
+        localStorage.setItem('token', response.data.access_token);
+        setWalletConnected(true);
+        setWalletAddress(address);
+        await fetchCurrentUser(response.data.access_token);
+      } catch (error) {
+        console.error('钱包自动登录失败:', error);
+      } finally {
+        setIsWalletAutoLoginInProgress(false);
+      }
+    };
+    handleWalletAutoLogin();
+  }, [signer, wallet, signerInfo, isAuthenticated, walletAddress, selectedWalletType]);
 
   // 获取当前用户信息
   const fetchCurrentUser = async (token) => {
@@ -1981,16 +2018,23 @@ function App() {
                   <div className="bg-blue-50 p-3 rounded-lg mb-3">
                     <p className="text-xs text-secondary">
                       <i className="fas fa-info-circle mr-1"></i>
-                      点击"连接钱包"后，系统会自动显示所有可用的钱包选项（包括JoyID和UTXO钱包等）
+                      点击"连接钱包"后，系统会自动显示所有可用的钱包选项（包括JoyID、SupeRISE、UTXO钱包等）
                     </p>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-3 gap-3">
                     <div className="border-2 rounded-lg p-3 text-center border-gray-200">
                       <div className="text-xl mb-1">
                         <i className="fas fa-smile"></i>
                       </div>
                       <h5 className="font-semibold text-dark text-xs">JoyID</h5>
                       <p className="text-xs text-medium mt-1">Web钱包</p>
+                    </div>
+                    <div className="border-2 rounded-lg p-3 text-center border-gray-200">
+                      <div className="text-xl mb-1">
+                        <i className="fas fa-rocket"></i>
+                      </div>
+                      <h5 className="font-semibold text-dark text-xs">SupeRISE</h5>
+                      <p className="text-xs text-medium mt-1">BTC & CKB</p>
                     </div>
                     <div className="border-2 rounded-lg p-3 text-center border-gray-200">
                       <div className="text-xl mb-1">
@@ -2095,7 +2139,7 @@ function App() {
                   </>
                 ) : (
                   <>
-                    <p>支付使用CKB钱包（支持JoyID、UTXO等多种钱包）</p>
+                    <p>支付使用CKB钱包（支持JoyID、SupeRISE、UTXO等多种钱包）</p>
                     <p className="mt-1">请确保您的钱包有足够的CKB余额</p>
                   </>
                 )}
@@ -2128,7 +2172,7 @@ function App() {
                       <div key={item.id} className="bg-gray-50 rounded-lg p-3">
                         <div className="flex justify-between items-start mb-2">
                           <div className="flex-1">
-                            <h4 className="font-medium text-dark text-sm">{item.name}</h4>
+                            <h4 className="font-medium text-dark text-sm mb-1">{item.name}</h4>
                             <p className="text-accent font-bold mt-1">{item.price}</p>
                           </div>
                           <button
@@ -2258,21 +2302,30 @@ function App() {
                   <div className="bg-blue-50 p-3 rounded-lg mb-3">
                     <p className="text-xs text-secondary">
                       <i className="fas fa-info-circle mr-1"></i>
-                      点击"连接钱包"后，系统会自动显示所有可用的钱包选项（包括JoyID和UTXO钱包等）
+                      点击"连接钱包"后，系统会自动显示所有可用的钱包选项（包括JoyID、SupeRISE、UTXO钱包等）
                     </p>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-3 gap-3">
                     <div className="border-2 rounded-lg p-3 text-center border-gray-200">
                       <div className="text-xl mb-1">
                         <i className="fas fa-smile"></i>
                       </div>
                       <h5 className="font-semibold text-dark text-xs">JoyID</h5>
+                      <p className="text-xs text-medium mt-1">Web钱包</p>
+                    </div>
+                    <div className="border-2 rounded-lg p-3 text-center border-gray-200">
+                      <div className="text-xl mb-1">
+                        <i className="fas fa-rocket"></i>
+                      </div>
+                      <h5 className="font-semibold text-dark text-xs">SupeRISE</h5>
+                      <p className="text-xs text-medium mt-1">BTC & CKB</p>
                     </div>
                     <div className="border-2 rounded-lg p-3 text-center border-gray-200">
                       <div className="text-xl mb-1">
                         <i className="fas fa-wallet"></i>
                       </div>
                       <h5 className="font-semibold text-dark text-xs">UTXO钱包</h5>
+                      <p className="text-xs text-medium mt-1">Neuron等</p>
                     </div>
                   </div>
                 </div>
@@ -2305,7 +2358,7 @@ function App() {
                   </>
                 ) : (
                   <>
-                    <p>支付使用CKB钱包（支持JoyID、UTXO等多种钱包）</p>
+                    <p>支付使用CKB钱包（支持JoyID、SupeRISE、UTXO等多种钱包）</p>
                     <p className="mt-1">请确保您的钱包有足够的CKB余额</p>
                   </>
                 )}
