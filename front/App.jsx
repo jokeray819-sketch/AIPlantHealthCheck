@@ -68,7 +68,6 @@ function App() {
   const [showMembershipModal, setShowMembershipModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState('monthly');
   const [selectedWalletType, setSelectedWalletType] = useState('eth'); // 'eth' or 'ckb'
-  const [selectedCkbWallet, setSelectedCkbWallet] = useState('joyid'); // 'joyid' or 'utxo'
   const [walletConnected, setWalletConnected] = useState(false);
   const [walletAddress, setWalletAddress] = useState('');
   const [purchaseLoading, setPurchaseLoading] = useState(false);
