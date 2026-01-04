@@ -841,16 +841,16 @@ function App() {
         <button 
           onClick={() => galleryInputRef.current?.click()}
           className="flex flex-col items-center justify-center bg-white border-2 border-primary text-primary py-4 px-2 rounded-lg btn-shadow transition hover:bg-primary/5"
+          title="从相册选择"
         >
-          <i className="fas fa-image text-2xl mb-2"></i>
-          <span className="text-sm font-medium">从相册选择</span>
+          <i className="fas fa-image text-2xl"></i>
         </button>
         <button 
           onClick={() => captureFileInputRef.current?.click()}
           className="flex flex-col items-center justify-center bg-primary text-white py-4 px-2 rounded-lg btn-shadow transition hover:bg-primary/90"
+          title="拍照"
         >
-          <i className="fas fa-camera text-2xl mb-2"></i>
-          <span className="text-sm font-medium">拍照</span>
+          <i className="fas fa-camera text-2xl"></i>
         </button>
         <button 
           onClick={() => {
@@ -858,9 +858,9 @@ function App() {
             setSelectedFile(null);
           }}
           className="flex flex-col items-center justify-center bg-white border-2 border-gray-300 text-dark py-4 px-2 rounded-lg btn-shadow transition hover:bg-gray-50"
+          title="重新选择"
         >
-          <i className="fas fa-redo text-2xl mb-2"></i>
-          <span className="text-sm font-medium">重新选择</span>
+          <i className="fas fa-redo text-2xl"></i>
         </button>
       </div>
       
