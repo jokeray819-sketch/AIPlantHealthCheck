@@ -137,6 +137,33 @@ async def save_image(file: UploadFile) -> str:
     # 返回可访问的URL路径
     return f"/images/{unique_filename}"
 
+# ==================== 健康检查接口 ====================
+
+@app.get("/health")
+def health_check(db: Session = Depends(get_db)):
+    """
+    健康检查接口
+    用于监控系统检查应用程序和数据库连接状态
+    """
+    try:
+        # 检查数据库连接
+        db.execute("SELECT 1")
+        
+        return {
+            "status": "healthy",
+            "service": "AI Plant Health Check API",
+            "database": "connected",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "service": "AI Plant Health Check API",
+            "database": "disconnected",
+            "error": str(e),
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
 # ==================== 用户认证相关路由 ====================
 
 @app.post("/register", response_model=UserResponse)
