@@ -7,10 +7,8 @@ services:
     container_name: plant-health-mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root_password_change_me}
-      MYSQL_DATABASE: ${DB_NAME:-plant_health_db}
-      MYSQL_USER: ${DB_USER:-plant_user}
-      MYSQL_PASSWORD: ${DB_PASSWORD:-your_password}
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: plant_health_db
     ports:
       - "3306:3306"
     volumes:
@@ -34,9 +32,9 @@ services:
     environment:
       DB_HOST: mysql
       DB_PORT: 3306
-      DB_USER: ${DB_USER:-plant_user}
-      DB_PASSWORD: ${DB_PASSWORD:-your_password}
-      DB_NAME: ${DB_NAME:-plant_health_db}
+      DB_USER: root
+      DB_PASSWORD: zjjiang819
+      DB_NAME: plant_health_db
       SECRET_KEY: ${SECRET_KEY:-your-secret-key-here-change-in-production}
       ALGORITHM: ${ALGORITHM:-HS256}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
