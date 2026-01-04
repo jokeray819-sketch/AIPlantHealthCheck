@@ -354,10 +354,13 @@ function App() {
         
         const priceInShannons = BigInt(Math.floor(total * CNY_TO_CKB_SHANNONS_RATE));
 
+        // 获取收款地址的脚本
+        const recipientAddress = await ccc.Address.fromString(PAYMENT_RECIPIENT_ADDRESS, client);
+
         // 构建交易
         const tx = ccc.Transaction.from({
           outputs: [{
-            lock: await ccc.Address.fromString(PAYMENT_RECIPIENT_ADDRESS, client).getScript(),
+            lock: recipientAddress.script,
             capacity: priceInShannons,
           }],
         });
@@ -607,10 +610,13 @@ function App() {
           throw new Error('请先连接CKB钱包');
         }
         
+        // 获取收款地址的脚本
+        const recipientAddress = await ccc.Address.fromString(PAYMENT_RECIPIENT_ADDRESS, client);
+        
         // 构建交易
         const tx = ccc.Transaction.from({
           outputs: [{
-            lock: await ccc.Address.fromString(PAYMENT_RECIPIENT_ADDRESS, client).getScript(),
+            lock: recipientAddress.script,
             capacity: BigInt(pricesInCKB[selectedPlan]),
           }],
         });
