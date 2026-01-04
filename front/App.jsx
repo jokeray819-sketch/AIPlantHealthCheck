@@ -676,6 +676,10 @@ function App() {
       setSelectedFile(file);
       setPreview(URL.createObjectURL(file));
       setResult(null);
+      // If uploaded from main page, show capture page for preview
+      if (!showCapturePage) {
+        setShowCapturePage(true);
+      }
     }
   };
 
@@ -781,7 +785,7 @@ function App() {
           <span>立即拍照检测</span>
         </button>
         <button 
-          onClick={() => setShowCapturePage(true)}
+          onClick={() => fileInputRef.current?.click()}
           className="bg-white text-primary border border-primary py-5 px-6 rounded-lg flex items-center justify-center gap-2 btn-shadow transition hover:bg-primary/5 text-lg"
         >
           <i className="fas fa-upload text-2xl"></i>
