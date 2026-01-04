@@ -7,7 +7,8 @@ const AI_ANALYSIS_DELAY = 1500; // AI分析页面显示时间（毫秒）
 //const BASE_URL = 'http://192.168.11.252:8000';
 const BASE_URL = 'http://121.41.75.171:8000';
 // 区块链支付配置（生产环境应从环境变量读取）
-const PAYMENT_RECIPIENT_ADDRESS = '0x84Ae0feD8a61E79920A9c01cb60D3c7da26Ea2A7'; // eth sepolia 收款地址
+const ETH_PAYMENT_RECIPIENT_ADDRESS = '0x84Ae0feD8a61E79920A9c01cb60D3c7da26Ea2A7'; // eth sepolia 收款地址
+const CKB_PAYMENT_RECIPIENT_ADDRESS = 'ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsqdamwzrffgc54ef48493nfd2sd0h4cjnxg4850up'; // ckb testnet 收款地址
 
 // 支付汇率常量（测试环境简化汇率，生产环境应从实时API获取）
 const CNY_TO_WEI_RATE = 1000000000000000; // 1 CNY ≈ 0.001 ETH (简化测试汇率)
@@ -337,7 +338,7 @@ function App() {
         const priceInWei = BigInt(Math.floor(total * CNY_TO_WEI_RATE)).toString();
         
         const transactionParameters = {
-          to: PAYMENT_RECIPIENT_ADDRESS,
+          to: ETH_PAYMENT_RECIPIENT_ADDRESS,
           from: address,
           value: '0x' + BigInt(priceInWei).toString(16),
         };
@@ -355,7 +356,7 @@ function App() {
         const priceInShannons = BigInt(Math.floor(total * CNY_TO_CKB_SHANNONS_RATE));
 
         // 获取收款地址的脚本
-        const recipientAddress = await ccc.Address.fromString(PAYMENT_RECIPIENT_ADDRESS, client);
+        const recipientAddress = await ccc.Address.fromString(CKB_PAYMENT_RECIPIENT_ADDRESS, client);
 
         // 构建交易
         const tx = ccc.Transaction.from({
@@ -588,7 +589,7 @@ function App() {
         };
 
         const transactionParameters = {
-          to: PAYMENT_RECIPIENT_ADDRESS,
+          to: ETH_PAYMENT_RECIPIENT_ADDRESS,
           from: address,
           value: '0x' + BigInt(pricesInWei[selectedPlan]).toString(16),
         };
@@ -611,7 +612,7 @@ function App() {
         }
         
         // 获取收款地址的脚本
-        const recipientAddress = await ccc.Address.fromString(PAYMENT_RECIPIENT_ADDRESS, client);
+        const recipientAddress = await ccc.Address.fromString(CKB_PAYMENT_RECIPIENT_ADDRESS, client);
         
         // 构建交易
         const tx = ccc.Transaction.from({
